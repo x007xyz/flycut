@@ -40,6 +40,7 @@
   import { useTrackState } from '@/stores/trackState';
   import { usePlayerState } from '@/stores/playerState';
   import { AudioTrack } from '@/class/AudioTrack';
+  import { UnitFrame2μs } from '@/data/trackConfig';
   import { Combinator } from '@webav/av-cliper';
   import { createFileWriter } from '@/utils/common';
   import { saveRenderedVideo } from '@/utils/videoExport';
@@ -54,15 +55,17 @@
   const size = ref(14);
   const inner = ref(true);
   const exporting = ref(false);
+  const silentExportNotice = '当前浏览器不支持 AAC 编码，导出的视频将没有声音。';
   const switchClass = computed(() => ({
     '--el-switch-border-color': store.isDark ? '#4B5563' : '#D1D5DB',
     '--el-color-white': store.isDark ? '#F3F4F6' : '#374151'
   }));
 
-  async function chooseDestination() {
+  async function chooseDestination(includeAudio: boolean) {
     try {
       // The save picker needs a fresh user gesture after rendering.
-      await ElMessageBox.confirm('视频已合成，是否保存 MP4？', '合成完成', {
+      const message = includeAudio ? '视频已合成，是否保存 MP4？' : `${silentExportNotice}是否保存 MP4？`;
+      await ElMessageBox.confirm(message, '合成完成', {
         confirmButtonText: '保存 MP4',
         cancelButtonText: '取消',
         closeOnClickModal: false
@@ -87,17 +90,33 @@
     }
 
     const loading = ElLoading.service({ text: '正在合成视频' });
-    const options = { width: 1080, height: 1920, bgColor: 'black' };
+    const videoConfig = { codec: 'avc1.42E032', width: 1080, height: 1920, bitrate: 5e6 };
     let com: Combinator | undefined;
     try {
-      if (!await Combinator.isSupported(options)) {
-        ElMessage.error('当前浏览器不支持 MP4 所需的 H.264 或 AAC 编码，请更换浏览器后重试');
+      const supportsVideo = typeof OffscreenCanvas !== 'undefined' && typeof VideoFrame !== 'undefined'
+        && typeof window.VideoEncoder !== 'undefined' && (await window.VideoEncoder.isConfigSupported(videoConfig)).supported;
+      if (!supportsVideo) {
+        ElMessage.error('当前浏览器不支持 MP4 所需的 H.264 编码，请更换浏览器后重试');
         return;
       }
 
-      const tracks = toRaw(trackState.trackList).flatMap(({ list }) => list);
+      // WebAV's combined support check requires AAC even with audio disabled.
+      const includeAudio = typeof window.AudioEncoder !== 'undefined' && typeof AudioData !== 'undefined'
+        && await window.AudioEncoder.isConfigSupported({ codec: 'mp4a.40.2', sampleRate: 48000, numberOfChannels: 2 })
+          .then(result => result.supported === true, () => false);
+
+      const maxTime = includeAudio ? undefined : trackState.frameCount * UnitFrame2μs;
+      const tracks = toRaw(trackState.trackList).flatMap(({ list }) => list)
+        .filter(track => includeAudio || track.type !== 'audio');
+      if (!tracks.length) {
+        ElMessage.error('当前浏览器不支持 AAC 编码，此项目没有可导出的画面');
+        return;
+      }
+      if (!includeAudio) ElMessage.warning(silentExportNotice);
       const playerSize = { width: playerState.playerWidth, height: playerState.playerHeight };
-      com = new Combinator(options);
+      const { codec: videoCodec, ...videoOptions } = videoConfig;
+      const options = { ...videoOptions, videoCodec, bgColor: 'black' };
+      com = new Combinator(includeAudio ? options : { ...options, audio: false });
       const compositor = com;
       const prepared = await Promise.allSettled(tracks.map(async(track, index) => {
         const rawTrack = toRaw(track);
@@ -112,9 +131,9 @@
       const failed = prepared.find(result => result.status === 'rejected');
       if (failed?.status === 'rejected') throw failed.reason;
 
-      const saved = await saveRenderedVideo(() => compositor.output(), () => {
+      const saved = await saveRenderedVideo(() => compositor.output({ maxTime }), () => {
         loading.close();
-        return chooseDestination();
+        return chooseDestination(includeAudio);
       });
       if (saved) ElMessage.success('合成视频成功');
     } catch (error) {

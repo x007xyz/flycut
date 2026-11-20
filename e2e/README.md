@@ -14,14 +14,10 @@ ffmpeg -f lavfi -i testsrc2=size=160x90:rate=12 \
 ```
 
 Imports, decoding, preview pixels, H.264 encoding and OPFS are real. No app
-modules are mocked. The save picker is replaced with an AbortError-throwing
-browser API and a call counter, avoiding a native OS dialog. Unsupported-codec
-tests replace only the selected encoder's `isConfigSupported` with `false`.
+modules are mocked. Export tests make the selected encoder report that its
+configuration is unsupported, without replacing any encoders.
 
-In the cancellation test only, if native AAC encoding is unavailable (as in
-Playwright's Linux Chromium), an AudioEncoder subclass reports support and
-delegates configure to native Opus instead of AAC. This exercises rendering,
-staging, confirmation, picker cancellation, cleanup and repeated exports with
-real encoded bytes, but **does not validate playable AAC/MP4 output**. Browsers
-with AAC support use native AAC unchanged. A native successful save and exported
-file playback are not covered. No codec support is faked in the error tests.
+The save picker returns an OPFS file handle in the silent-export test and
+throws AbortError in the cancellation test. The silent-export test plays the
+saved MP4 and checks that it has a video track and no audio track. Native save
+dialogs and successful AAC encoding are not covered by this suite.

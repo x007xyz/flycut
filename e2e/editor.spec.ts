@@ -4,6 +4,13 @@ import path from 'node:path';
 
 const fixture = path.resolve('e2e/fixtures/sample.mp4');
 const tracks = '.trackLine[data-type="video"]';
+const silentNotice = '当前浏览器不支持 AAC 编码，导出的视频将没有声音。';
+
+async function disableAac(page: Page) {
+  await page.evaluate(() => {
+    window.AudioEncoder.isConfigSupported = async config => ({ supported: false, config });
+  });
+}
 
 async function dropFile(page: Page, name = 'sample.mp4') {
   const bytes = [...readFileSync(path.resolve('e2e/fixtures', name))];
@@ -81,43 +88,71 @@ test('non-MP4 drop warns without creating tracks', async({ page }) => {
   await expect(page.locator('.trackLine')).toHaveCount(0);
 });
 
-for (const encoder of ['VideoEncoder', 'AudioEncoder']) {
-  test(`unsupported ${encoder} clears export loader without opening picker`, async({ page }) => {
-    await dropFile(page);
-    await expectImported(page);
-    await page.evaluate(encoderName => {
-      (window as any)[encoderName].isConfigSupported = async(config: unknown) => ({ supported: false, config });
-    }, encoder);
-    await page.getByRole('button', { name: '合成视频' }).click();
-    await expect(page.getByText('当前浏览器不支持 MP4 所需的 H.264 或 AAC 编码，请更换浏览器后重试')).toBeVisible();
-    await expectIdle(page, 0);
+test('unsupported H.264 clears export loader without opening picker', async({ page }) => {
+  await dropFile(page);
+  await expectImported(page);
+  await page.evaluate(() => {
+    window.VideoEncoder.isConfigSupported = async config => ({ supported: false, config });
   });
-}
+  await page.getByRole('button', { name: '合成视频' }).click();
+  await expect(page.getByText('当前浏览器不支持 MP4 所需的 H.264 编码，请更换浏览器后重试')).toBeVisible();
+  await expectIdle(page, 0);
+});
 
-test('encoding recovers after confirm and save-picker cancellation', async({ page }) => {
-  await page.evaluate(async() => {
-    const NativeEncoder = (window as any).AudioEncoder;
-    const config = { codec: 'mp4a.40.2', sampleRate: 48000, numberOfChannels: 2 };
-    if ((await NativeEncoder.isConfigSupported(config)).supported) return;
-    // Linux Chromium lacks AAC encoding. Keep real H.264 and OPFS, but use
-    // native Opus audio for this cancellation-only test (not MP4 validity).
-    (window as any).AudioEncoder = class extends NativeEncoder {
-      static async isConfigSupported(request: Record<string, unknown>) {
-        return { supported: true, config: request };
-      }
-
-      configure(request: Record<string, unknown>) {
-        super.configure({ ...request, codec: 'opus' });
-      }
+test('unsupported AAC saves a playable MP4 with no audio track', async({ page }) => {
+  await disableAac(page);
+  await page.evaluate(() => {
+    (window as any).showSaveFilePicker = async() => {
+      (window as any).savePickerCalls++;
+      const root = await navigator.storage.getDirectory();
+      return root.getFileHandle('silent-output.mp4', { create: true });
     };
   });
+  await dropFile(page);
+  await expectImported(page);
+  await page.getByRole('button', { name: '合成视频' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText(silentNotice, { exact: false })).toBeVisible({ timeout: 90000 });
+  await dialog.getByRole('button', { name: '保存 MP4', exact: true }).click();
+  await expect(page.getByText('合成视频成功')).toBeVisible();
+  await expectIdle(page, 1);
+
+  const media = await page.evaluate(async() => {
+    const root = await navigator.storage.getDirectory();
+    const file = await (await root.getFileHandle('silent-output.mp4')).getFile();
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video') as HTMLVideoElement & { captureStream(): MediaStream };
+    video.muted = true;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        video.onloadeddata = () => resolve();
+        video.onerror = () => reject(new Error(video.error?.message ?? 'Export could not be decoded'));
+        video.src = url;
+      });
+      const stream = video.captureStream();
+      await video.play();
+      return {
+        width: video.videoWidth, height: video.videoHeight, duration: video.duration,
+        videoTracks: stream.getVideoTracks().length, audioTracks: stream.getAudioTracks().length
+      };
+    } finally {
+      video.pause();
+      URL.revokeObjectURL(url);
+    }
+  });
+  expect(media).toMatchObject({ width: 1080, height: 1920, videoTracks: 1, audioTracks: 0 });
+  expect(media.duration).toBeGreaterThan(0);
+});
+
+test('silent export recovers after confirm and save-picker cancellation', async({ page }) => {
+  await disableAac(page);
   await dropFile(page);
   await expectImported(page);
   const exportButton = page.getByRole('button', { name: '合成视频' });
   async function renderAndCancel(action: string, calls: number) {
     await exportButton.click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByText('视频已合成，是否保存 MP4？')).toBeVisible({ timeout: 90000 });
+    await expect(dialog.getByText(silentNotice, { exact: false })).toBeVisible({ timeout: 90000 });
     await expect(page.locator('.el-loading-mask')).toHaveCount(0);
     await dialog.getByRole('button', { name: action, exact: true }).click();
     await expect(dialog).not.toBeVisible();
