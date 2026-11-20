@@ -2,7 +2,7 @@ import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
 import { videoDecoder, splitClip } from '@/utils/webcodecs';
 import { OffscreenSprite } from '@webav/av-cliper';
-import { UnitFrame2μs } from '@/data/trackConfig';
+import { baseFps, UnitFrame2μs } from '@/data/trackConfig';
 
 export interface VideoSource {
   id: string,
@@ -46,7 +46,7 @@ export class VideoTrack implements BaseTractItem {
     // 获取文件类型
     this.format = source.format;
     // 设置轨道信息
-    this.frameCount = source.duration * 30;
+    this.frameCount = Math.max(1, Math.round(source.duration * baseFps));
     this.start = curFrame;
     this.end = this.start + this.frameCount;
 
@@ -114,10 +114,10 @@ export class VideoTrack implements BaseTractItem {
   // 生成合成对象
   async combine(playerSize: { width: number, height: number }, outputRatio: number) {
     const video = await videoDecoder.decode({ id: this.source.id });
-    const clip = await splitClip(video, { offsetL: this.offsetL, offsetR: this.offsetR, frameCount: this.frameCount });
-    if (!clip) {
+    if (!video) {
       throw new Error('clip is not ready');
     }
+    const clip = await splitClip(video, { offsetL: this.offsetL, offsetR: this.offsetR, frameCount: this.frameCount });
     const spr = new OffscreenSprite(clip);
     // TODO：需要支持裁剪
     spr.time = { offset: this.start * UnitFrame2μs, duration: (this.end - this.start) * UnitFrame2μs };

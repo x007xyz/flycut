@@ -13,7 +13,7 @@
       <!-- <span class="text-xs select-none ml-4">自动保存：2023-02-10 00:51</span> -->
     </div>
     <div class="flex w-1/3 flex-row-reverse pr-10 items-center">
-      <ElButton color="#683CFD" size="default" @click="onGenerate">
+      <ElButton color="#683CFD" size="default" :disabled="exporting" @click="onGenerate">
         <ElIcon :size="size" color="#fff" class="mr-1">
           <Download />
         </ElIcon>
@@ -34,16 +34,17 @@
 
 <script setup lang="ts">
   /* eslint-disable camelcase */
-  import { ref, computed } from 'vue';
-  import { Download, Sunny, Moon, Back } from '@element-plus/icons-vue';
+  import { ref, computed, toRaw } from 'vue';
+  import { Download, Sunny, Moon } from '@element-plus/icons-vue';
   import { usePageState } from '@/stores/pageState';
   import { useTrackState } from '@/stores/trackState';
   import { usePlayerState } from '@/stores/playerState';
   import { AudioTrack } from '@/class/AudioTrack';
-  import type { Track } from '@/class/Track';
-  import { Combinator, type OffscreenSprite } from '@webav/av-cliper';
+  import { Combinator } from '@webav/av-cliper';
   import { createFileWriter } from '@/utils/common';
-  import { ElLoading, ElMessage } from 'element-plus';
+  import { saveRenderedVideo } from '@/utils/videoExport';
+  import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
+  import 'element-plus/es/components/message-box/style/css';
 
   const trackState = useTrackState();
 
@@ -52,49 +53,86 @@
   const store = usePageState();
   const size = ref(14);
   const inner = ref(true);
+  const exporting = ref(false);
   const switchClass = computed(() => ({
     '--el-switch-border-color': store.isDark ? '#4B5563' : '#D1D5DB',
     '--el-color-white': store.isDark ? '#F3F4F6' : '#374151'
   }));
 
-  const onGenerate = async() => {
-    const loading = ElLoading.service({ text: '正在合成视频' });
-    const start = performance.now();
-    const sprs: Promise<OffscreenSprite>[] = [];
-    // 使用OffscreenSprite和Combinator进行视频合成
-    for (const track of trackState.trackList.reduce((res, { list }) => res.concat(list), [] as Track[])) {
-      if (track instanceof AudioTrack) {
-        sprs.push(toRaw(track).combine());
-      } else {
-        sprs.push(toRaw(track).combine({ width: playerState.playerWidth, height: playerState.playerHeight }, 6));
+  async function chooseDestination() {
+    try {
+      // The save picker needs a fresh user gesture after rendering.
+      await ElMessageBox.confirm('视频已合成，是否保存 MP4？', '合成完成', {
+        confirmButtonText: '保存 MP4',
+        cancelButtonText: '取消',
+        closeOnClickModal: false
+      });
+      return await createFileWriter();
+    } catch (error) {
+      if (error === 'cancel' || error === 'close' || (error instanceof DOMException && error.name === 'AbortError')) {
+        return undefined;
       }
+      throw error;
+    }
+  }
+
+  async function generateVideo() {
+    if (!trackState.frameCount) {
+      ElMessage.warning('请先添加素材');
+      return;
+    }
+    if (typeof window.showSaveFilePicker !== 'function') {
+      ElMessage.error('当前浏览器不支持保存视频，请使用 Chrome 或 Edge');
+      return;
     }
 
-    const sprites = await Promise.all(sprs);
+    const loading = ElLoading.service({ text: '正在合成视频' });
+    const options = { width: 1080, height: 1920, bgColor: 'black' };
+    let com: Combinator | undefined;
+    try {
+      if (!await Combinator.isSupported(options)) {
+        ElMessage.error('当前浏览器不支持 MP4 所需的 H.264 或 AAC 编码，请更换浏览器后重试');
+        return;
+      }
 
-    console.log('生成sprite耗时', performance.now() - start, 'ms');
+      const tracks = toRaw(trackState.trackList).flatMap(({ list }) => list);
+      const playerSize = { width: playerState.playerWidth, height: playerState.playerHeight };
+      com = new Combinator(options);
+      const compositor = com;
+      const prepared = await Promise.allSettled(tracks.map(async(track, index) => {
+        const rawTrack = toRaw(track);
+        const sprite = await (rawTrack instanceof AudioTrack ? rawTrack.combine() : rawTrack.combine(playerSize, 6));
+        try {
+          sprite.zIndex = 999 - index;
+          await compositor.addSprite(sprite);
+        } finally {
+          sprite.destroy();
+        }
+      }));
+      const failed = prepared.find(result => result.status === 'rejected');
+      if (failed?.status === 'rejected') throw failed.reason;
 
-    const com = new Combinator({
-      width: 1080,
-      height: 1920,
-      bgColor: 'black'
+      const saved = await saveRenderedVideo(() => compositor.output(), () => {
+        loading.close();
+        return chooseDestination();
+      });
+      if (saved) ElMessage.success('合成视频成功');
+    } catch (error) {
+      console.error(error);
+      ElMessage.error('导出视频失败，请重试');
+    } finally {
+      com?.destroy();
+      loading.close();
+    }
+  }
+
+  async function onGenerate() {
+    if (exporting.value) return;
+    exporting.value = true;
+    await generateVideo().finally(() => {
+      exporting.value = false;
     });
-
-    await Promise.all(sprites.map((sprite, index) => {
-      sprite.zIndex = 999 - index;
-      return com.addSprite(sprite);
-    }));
-
-    console.log('合成耗时', performance.now() - start, 'ms');
-
-    await com.output().pipeTo(await createFileWriter());
-
-    loading.close();
-
-    ElMessage.success('合成视频成功');
-
-    console.log('导出文件耗时', performance.now() - start, 'ms');
-  };
+  }
 
   function openGithub() {
     window.open('https://github.com/x007xyz/fly-cut.git');
