@@ -11,6 +11,7 @@ export function useEditorDraft() {
   const saveWarning = ref('');
   const lines = computed(() => captureTimeline(timeline.trackList));
   let saved = '';
+  let unrecoveredTimeline: string | undefined;
   let timer: number | undefined;
   let disposed = false;
 
@@ -21,11 +22,13 @@ export function useEditorDraft() {
   function flush() {
     window.clearTimeout(timer);
     if (restoring.value) return;
+    if (unrecoveredTimeline === JSON.stringify(lines.value)) return;
     const next = snapshot();
     if (next === saved) return;
     try {
       localStorage.setItem(draftKey, next);
       saved = next;
+      unrecoveredTimeline = undefined;
       saveWarning.value = '';
     } catch {
       saveWarning.value = '无法自动保存草稿，请检查浏览器的本地存储空间。';
@@ -62,6 +65,7 @@ export function useEditorDraft() {
     } finally {
       if (!disposed) {
         saved = snapshot();
+        if (restoreWarning.value) unrecoveredTimeline = JSON.stringify(lines.value);
         restoring.value = false;
       }
     }

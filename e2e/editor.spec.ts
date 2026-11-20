@@ -179,7 +179,7 @@ test('clearing a numeric text property resets it without invalidating the draft'
   await expect(page.getByPlaceholder('请输入内容')).toHaveValue('Keep this text');
 });
 
-test('missing cached media does not prevent restoring text or overwrite the draft on load', async({ page }) => {
+test('missing cached media preserves the original draft until the timeline changes', async({ page }) => {
   await dropFile(page);
   await expectImported(page);
   await addText(page, 'Still here');
@@ -194,7 +194,14 @@ test('missing cached media does not prevent restoring text or overwrite the draf
   await expect(page.locator(tracks)).toHaveCount(0);
   await page.locator(textClip).click({ position: { x: 12, y: 14 }});
   await expect(page.getByPlaceholder('请输入内容')).toHaveValue('Still here');
+  const timelineZoom = page.getByRole('slider').last();
+  await timelineZoom.press('ArrowRight');
+  await expect(timelineZoom).toHaveAttribute('aria-valuenow', '70');
+  await page.reload();
   expect(await readDraft(page)).toBe(draft);
+  await page.locator(textClip).click({ position: { x: 12, y: 14 }});
+  await page.getByPlaceholder('请输入内容').fill('Recovered and edited');
+  await expect.poll(() => readDraft(page)).toContain('Recovered and edited');
 });
 
 test('an invalid draft leaves a usable editor without overwriting the original', async({ page }) => {
