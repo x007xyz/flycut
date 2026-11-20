@@ -92,12 +92,13 @@
       height: 1920,
       bgColor: 'black',
       videoCodec: 'avc1.42E032',
-      bitrate: 5e6
+      bitrate: 5e6,
+      audioCodec: 'opus' as const
     };
     let com: Combinator | undefined;
     try {
       if (!await Combinator.isSupported(options)) {
-        ElMessage.error('当前浏览器不支持 MP4 所需的 H.264 或 AAC 编码，请更换浏览器后重试');
+        ElMessage.error('当前浏览器不支持 MP4 所需的 H.264 或 Opus 编码，请更换浏览器后重试');
         return;
       }
 

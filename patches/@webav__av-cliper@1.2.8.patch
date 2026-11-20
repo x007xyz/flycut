@@ -1,0 +1,89 @@
+diff --git a/dist/av-cliper.d.ts b/dist/av-cliper.d.ts
+index b8659f7127aeade9528d01a53a4d5b27e5ea8470..0cf87acb42761bf09982ac6835df9f3518f54d26 100644
+--- a/dist/av-cliper.d.ts
++++ b/dist/av-cliper.d.ts
+@@ -188,6 +188,7 @@ export declare class Combinator {
+         width?: number;
+         height?: number;
+         bitrate?: number;
++        audioCodec?: 'aac' | 'opus';
+     }): Promise<boolean>;
+     on: <Type extends "error" | "OutputProgress">(type: Type, listener: {
+         OutputProgress: (progress: number) => void;
+@@ -386,6 +387,7 @@ export declare interface ICombinatorOpts {
+     fps?: number;
+     bgColor?: string;
+     videoCodec?: string;
++    audioCodec?: 'aac' | 'opus';
+     /**
+      * false 合成的视频文件中排除音轨
+      */
+diff --git a/dist/av-cliper.js b/dist/av-cliper.js
+index 94cf5ba1dd749f7220f24e5ca3c38923e2b5c1e4..0ce6aab1e1af380094a7290680d48c12c5150472 100644
+--- a/dist/av-cliper.js
++++ b/dist/av-cliper.js
+@@ -358,16 +358,19 @@ function W(s, t) {
+   }
+   const n = t.audioTracks[0];
+   if (n != null) {
+-    const a = Bt(s), r = a == null ? {} : _t(a);
++    const opus = n.codec.toLowerCase() === "opus";
++    const a = opus ? Bt(s, "Opus")?.dOps : Bt(s)?.esds;
++    const r = a == null || opus ? {} : _t(a);
+     i.audioTrackConf = {
+       timescale: n.timescale,
+       samplerate: r.sampleRate ?? n.audio.sample_rate,
+       channel_count: r.numberOfChannels ?? n.audio.channel_count,
+       hdlr: "soun",
+-      type: n.codec.startsWith("mp4a") ? "mp4a" : n.codec,
++      type: opus ? "Opus" : n.codec.startsWith("mp4a") ? "mp4a" : n.codec,
+       description: a
+     }, i.audioDecoderConf = {
+-      codec: r.codec ?? x.codec,
++      codec: opus ? "opus" : r.codec ?? x.codec,
++      ...(opus && a != null ? { description: createOpusHead(a) } : {}),
+       numberOfChannels: r.numberOfChannels ?? n.audio.channel_count,
+       sampleRate: r.sampleRate ?? n.audio.sample_rate
+     };
+@@ -388,7 +391,21 @@ function Mt(s) {
+   }
+ }
+ function Bt(s, t = "mp4a") {
+-  return s.moov?.traks.map((i) => i.mdia.minf.stbl.stsd.entries).flat().find(({ type: i }) => i === t)?.esds;
++  return s.moov?.traks.map((i) => i.mdia.minf.stbl.stsd.entries).flat().find(({ type: i }) => i === t);
++}
++function createOpusHead(box) {
++  const bytes = new Uint8Array(19 + (box.ChannelMappingFamily === 0 ? 0 : 2 + box.OutputChannelCount));
++  bytes.set([79, 112, 117, 115, 72, 101, 97, 100, 1, box.OutputChannelCount]); // OpusHead, version 1
++  const view = new DataView(bytes.buffer);
++  view.setUint16(10, box.PreSkip, true);
++  view.setUint32(12, box.InputSampleRate, true);
++  view.setInt16(16, box.OutputGain, true);
++  bytes[18] = box.ChannelMappingFamily;
++  if (box.ChannelMappingFamily !== 0) {
++    bytes.set([box.StreamCount, box.CoupledCount], 19);
++    bytes.set(box.ChannelMapping, 21);
++  }
++  return bytes;
+ }
+ function _t(s) {
+   let t = "mp4a";
+@@ -2287,7 +2304,8 @@ class xe {
+       height: t.height ?? 1080,
+       bitrate: t.bitrate ?? 7e6
+     })).supported ?? !1) && (await self.AudioEncoder.isConfigSupported({
+-      codec: x.codec,
++      codec: t.audioCodec === "opus" ? "opus" : x.codec,
++      ...(t.audioCodec === "opus" ? { bitrate: 128e3 } : {}),
+       sampleRate: x.sampleRate,
+       numberOfChannels: x.channelCount
+     })).supported) ?? !1;
+@@ -2358,7 +2376,7 @@ class xe {
+         __unsafe_hardwareAcceleration__: this.#i.__unsafe_hardwareAcceleration__
+       } : null,
+       audio: o === !1 ? null : {
+-        codec: "aac",
++        codec: this.#i.audioCodec ?? "aac",
+         sampleRate: x.sampleRate,
+         channelCount: x.channelCount
+       },
