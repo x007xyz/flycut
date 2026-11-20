@@ -127,18 +127,18 @@
   });
   const trackStore = useTrackState();
   const activeIndex = ref(props.componentData.defaultValue); // 内部状态
-  const { selectResource, selectTrackItem, trackList } = storeToRefs(trackStore);
+  const { selectResource } = storeToRefs(trackStore);
   const formValue = computed({
     get() {
       if (selectResource.value) {
-        return get(trackList.value[selectTrackItem.value.line].list[selectTrackItem.value.index], props.componentData.mappingKey);
+        return get(selectResource.value, props.componentData.mappingKey);
       } else {
         return null;
       }
     },
     set(value) {
       if (selectResource.value && props.componentData.mappingKey) {
-        set(trackList.value[selectTrackItem.value.line].list[selectTrackItem.value.index], props.componentData.mappingKey, value);
+        set(selectResource.value, props.componentData.mappingKey, value);
       }
     }
   });
