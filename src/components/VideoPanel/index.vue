@@ -29,7 +29,7 @@
       const video = await input.getPrimaryVideoTrack();
       if (!video || !await video.canDecode()) throw new Error('不支持该视频的编码格式');
       const [width, height, end, start] = await Promise.all([
-        video.getDisplayWidth(), video.getDisplayHeight(), video.computeDuration(), input.getFirstTimestamp()
+        video.getDisplayWidth(), video.getDisplayHeight(), input.computeDuration(), input.getFirstTimestamp()
       ]);
       const frameCount = Math.max(1, Math.round((end - Math.max(0, start)) * baseFps));
       const id = await getMD5(await file.arrayBuffer());
