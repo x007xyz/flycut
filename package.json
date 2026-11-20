@@ -17,6 +17,7 @@
     "dev-ssl": "vite",
     "preview": "vite preview",
     "test:unit": "vitest --environment jsdom --root src/",
+    "test:e2e": "playwright test",
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --ignore-path .gitignore",
@@ -45,6 +46,7 @@
     "wavesurfer.js": "^7.7.11"
   },
   "devDependencies": {
+    "@playwright/test": "1.58.2",
     "@rushstack/eslint-patch": "^1.1.4",
     "@tailwindcss/aspect-ratio": "^0.4.2",
     "@tailwindcss/forms": "^0.5.3",
