@@ -44,9 +44,9 @@ export const Options = {
                                                 },
                                                 placeholder: '请输入内容'
                                             }, name: '内容', mappingKey: 'content', defaultValue: '默认文本' }),
-                                        mappingFormItem('Color', { name: '颜色', mappingKey: 'style.fill', defaultValue: '#ffffff' }),
-                                        mappingFormItem('Color', { name: '描边', mappingKey: 'style.stroke' }),
-                                        mappingFormItem('Color', { name: '背景', mappingKey: 'style.textBackgroundColor' })
+                                        mappingFormItem('Color', { name: '颜色', mappingKey: 'fill', defaultValue: '#ffffff' }),
+                                        mappingFormItem('Color', { name: '描边', mappingKey: 'stroke' }),
+                                        mappingFormItem('Color', { name: '背景', mappingKey: 'textBackgroundColor' })
                                     ]
                                 })
                             ]
