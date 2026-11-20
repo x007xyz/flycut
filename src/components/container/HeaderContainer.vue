@@ -87,7 +87,13 @@
     }
 
     const loading = ElLoading.service({ text: '正在合成视频' });
-    const options = { width: 1080, height: 1920, bgColor: 'black' };
+    const options = {
+      width: 1080,
+      height: 1920,
+      bgColor: 'black',
+      videoCodec: 'avc1.42E032',
+      bitrate: 5e6
+    };
     let com: Combinator | undefined;
     try {
       if (!await Combinator.isSupported(options)) {

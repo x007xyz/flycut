@@ -94,6 +94,37 @@ for (const encoder of ['VideoEncoder', 'AudioEncoder']) {
   });
 }
 
+test('video with a text overlay checks the MP4 output encoder settings', async({ page }) => {
+  const videoConfigs: unknown[] = [];
+  await page.exposeFunction('recordVideoEncoderConfig', (config: unknown) => {
+    videoConfigs.push(config);
+  });
+  await page.evaluate(() => {
+    const nativeCheck = window.VideoEncoder.isConfigSupported.bind(window.VideoEncoder);
+    window.VideoEncoder.isConfigSupported = async config => {
+      await (window as any).recordVideoEncoderConfig(config);
+      return nativeCheck(config);
+    };
+    window.AudioEncoder.isConfigSupported = async config => ({ supported: false, config });
+  });
+
+  await dropFile(page);
+  await expectImported(page);
+  await page.getByText('文字', { exact: true }).click();
+  await page.getByText('添加文字', { exact: true }).click();
+  await expect(page.locator('.trackLine[data-type="text"]')).toHaveCount(1);
+
+  await page.getByRole('button', { name: '合成视频' }).click();
+  await expect(page.getByText('当前浏览器不支持 MP4 所需的 H.264 或 AAC 编码，请更换浏览器后重试')).toBeVisible();
+  expect(videoConfigs).toEqual([{
+    codec: 'avc1.42E032',
+    width: 1080,
+    height: 1920,
+    bitrate: 5e6
+  }]);
+  await expectIdle(page, 0);
+});
+
 test('encoding recovers after confirm and save-picker cancellation', async({ page }) => {
   await page.evaluate(async() => {
     const NativeEncoder = (window as any).AudioEncoder;
