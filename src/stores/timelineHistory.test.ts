@@ -27,6 +27,24 @@ function setup(limit = 50) {
 afterEach(() => vi.useRealTimers());
 
 describe('timeline history', () => {
+  it('uses a restored timeline as the baseline and cancels pending commits', () => {
+    const s = setup();
+    s.add();
+    s.history.resetHistory();
+    vi.advanceTimersByTime(1000);
+    expect(s.history.canUndo.value).toBe(false);
+    s.lines[0].list[0].end = 45;
+    s.history.undo();
+    expect(s.lines[0].list[0].end).toBe(90);
+    expect(s.history.canRedo.value).toBe(true);
+    s.lines.splice(0);
+    s.history.resetHistory();
+    s.history.undo(); s.history.redo();
+    expect(s.lines).toHaveLength(0);
+    expect(s.history.canUndo.value).toBe(false);
+    expect(s.history.canRedo.value).toBe(false);
+    s.scope.stop();
+  });
   it('keeps prototypes, source identity and independent plain fields', () => {
     const clip = new Clip();
     const original = [{ type: 'video', main: true, list: [clip] }] as any;

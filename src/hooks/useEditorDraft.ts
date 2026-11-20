@@ -54,6 +54,7 @@ export function useEditorDraft() {
         const draft = await restoreDraft(json);
         if (disposed) return;
         timeline.trackList.splice(0, timeline.trackList.length, ...draft.lines);
+        timeline.resetHistory();
         timeline.trackScale = Math.max(0, Math.min(100, draft.trackScale));
         player.playStartFrame = Math.max(0, Math.min(timeline.frameCount, draft.playhead));
         if (draft.missingMedia) {

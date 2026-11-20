@@ -82,9 +82,16 @@ export function useTimelineHistory(
     undoStack.push(current);
     apply(snapshot);
   }
+  function resetHistory() {
+    cancel();
+    undoStack.length = 0;
+    redoStack.length = 0;
+    current = capture();
+    pending.value = false;
+  }
   onScopeDispose(cancel);
   return {
-    undo, redo, flushHistory: flush,
+    undo, redo, flushHistory: flush, resetHistory,
     canUndo: computed(() => pending.value || undoStack.length > 0),
     canRedo: computed(() => !pending.value && redoStack.length > 0)
   };
