@@ -44,6 +44,7 @@
   import { createFileWriter } from '@/utils/common';
   import { saveRenderedVideo } from '@/utils/videoExport';
   import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
+  import 'element-plus/es/components/message-box/style/css';
 
   const trackState = useTrackState();
 
