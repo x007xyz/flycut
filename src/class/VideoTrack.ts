@@ -101,7 +101,7 @@ export class VideoTrack implements BaseTractItem {
       this.audio = new Audio(this.source.url);
     }
     if (this.audio?.paused) {
-      this.audio.currentTime = (currentFrame - this.start - this.offsetL) / 30;
+      this.audio.currentTime = (currentFrame - this.start + this.offsetL) / baseFps;
       console.log('🚀 ~ VideoTrack ~ play ~ this.audio.currentTime:', this.audio.currentTime);
       this.audio.play();
     }
@@ -129,12 +129,13 @@ export class VideoTrack implements BaseTractItem {
     return spr;
   }
   split(cutFrame: number) {
-    this.end = cutFrame;
-    this.offsetR = this.frameCount + this.start - cutFrame; // 根据cutFrame对视频进行分割
-    // 根据cutFrame对视频进行分割
     const copy = new VideoTrack(this.source, cutFrame);
+    copy.end = this.end;
+    copy.offsetL = this.offsetL + cutFrame - this.start;
+    copy.offsetR = this.offsetR;
 
-    copy.offsetL = cutFrame - this.start;
+    this.offsetR += this.end - cutFrame;
+    this.end = cutFrame;
     return copy;
   }
 }

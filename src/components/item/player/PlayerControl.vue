@@ -19,6 +19,8 @@
   import { usePlayerState } from '@/stores/playerState';
   import { useTrackState } from '@/stores/trackState';
   import { getCurrentTrackItemList, isOfCanPlayType } from '@/utils/trackUtils';
+  import type { AudioTrack } from '@/class/AudioTrack';
+  import type { VideoTrack } from '@/class/VideoTrack';
   const props = defineProps({
     disable: {
       type: Boolean,
@@ -35,16 +37,24 @@
   });
   let playTimer = ref();
   const timeStamp = 1000 / 30;
+  let playingTracks = new Set<AudioTrack | VideoTrack>();
+  function syncAudio() {
+    const frame = store.playStartFrame;
+    const nextTracks = new Set(getCurrentTrackItemList(trackStore.trackList, frame, isOfCanPlayType)
+      .filter(item => frame < item.end));
+    playingTracks.forEach(item => {
+      if (!nextTracks.has(item)) item.pause();
+    });
+    nextTracks.forEach(item => item.play(frame));
+    playingTracks = nextTracks;
+  }
   // 视频暂停
   const pauseVideo = () => {
-    if (props.disable) return;
     store.isPause = true;
     playTimer.value?.cancel();
 
-    const trackItemList = getCurrentTrackItemList(trackStore.trackList, store.playStartFrame, isOfCanPlayType);
-    trackItemList.forEach(item => {
-      item?.pause();
-    });
+    playingTracks.forEach(item => item.pause());
+    playingTracks.clear();
   };
   function startPlay() {
     if (props.disable) return;
@@ -52,6 +62,7 @@
       store.playStartFrame = 0;
     }
     store.isPause = false;
+    syncAudio();
     playTimer.value?.cancel();
     playTimer.value = preciseInterval(() => {
       store.playStartFrame++;
@@ -67,13 +78,7 @@
     }
   });
   watch(() => store.playStartFrame, () => {
-    if (!store.isPause) {
-      // 播放声音，查询当前帧的数据
-      const trackItemList = getCurrentTrackItemList(trackStore.trackList, store.playStartFrame, isOfCanPlayType);
-      trackItemList.forEach(item => {
-        item?.play(store.playStartFrame);
-      });
-    }
+    if (!store.isPause) syncAudio();
   });
 </script>
 
