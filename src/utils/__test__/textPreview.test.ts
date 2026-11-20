@@ -61,11 +61,11 @@ describe('text attribute preview', () => {
     store.selectTrackItem.index = 0;
     const stub = {
       props: ['modelValue'],
-      emits: ['update:modelValue'],
+      emits: ['update:modelValue', 'input'],
       template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
     };
     const wrapper = mount(FormItem, {
-      props: { componentData: { dataType, mappingKey }},
+      props: { componentData: { dataType, mappingKey, attr: { max: 200 }}},
       global: { plugins: [pinia], stubs: { ElInput: stub, ElInputNumber: stub, ElSlider: stub, ColorPicker: stub }}
     });
     try {
@@ -78,7 +78,7 @@ describe('text attribute preview', () => {
           await input.setValue(input.element.value + letter);
         }, Promise.resolve());
       } else {
-        wrapper.findComponent(stub).vm.$emit('update:modelValue', edited);
+        wrapper.findComponent(stub).vm.$emit(dataType === 'Slider' ? 'input' : 'update:modelValue', edited);
         await nextTick();
       }
       expect(input.element.value).toBe(String(edited));
