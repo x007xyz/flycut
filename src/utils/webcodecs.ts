@@ -34,25 +34,29 @@ async function writeFile(id: string, stream?: ReadableStream<Uint8Array>) {
 class VideoDecoder {
   #decoderMap = new Map<string, MP4Clip>();
 
-  #thumbnailsMap = new Map<string, {
+  #thumbnailsMap = new Map<string, Promise<{
       img: Blob;
       ts: number;
-  }[]>();
+  }[]>>();
 
-  async thumbnails(source: VideoSource) {
-    if (this.#thumbnailsMap.has(source.id)) {
-      return this.#thumbnailsMap.get(source.id);
-    }
-    const clip = await this.decode({ id: source.id });
+  thumbnails(source: VideoSource) {
+    const cached = this.#thumbnailsMap.get(source.id);
+    if (cached) return cached;
 
+    const thumbnails = this.#loadThumbnails(source.id).catch(error => {
+      this.#thumbnailsMap.delete(source.id);
+      throw error;
+    });
+    this.#thumbnailsMap.set(source.id, thumbnails);
+    return thumbnails;
+  }
+
+  async #loadThumbnails(id: string) {
+    const clip = await this.decode({ id });
     if (!clip) {
       throw new Error("clip is not ready");
     }
-    const thumbnails = await clip.thumbnails(50, { step: 1e6 });
-
-    this.#thumbnailsMap.set(source.id, thumbnails);
-
-    return thumbnails;
+    return clip.thumbnails(50, { step: 1e6 });
   }
 
   async decode({ id, stream, type }: { id: string, stream?: ReadableStream<Uint8Array>, type?: string }) {
