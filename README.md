@@ -7,6 +7,8 @@ If you find it useful, please 🌟 Star 🌟 to support it 🫣 <br/>
 ## Features
 ![](coverImage/map.png)
 
+FlyCut automatically saves the latest timeline and its imported media in this browser. Reload the editor on the same site to resume. Clearing the site's data removes the local draft.
+
 ## Preview
 ![](coverImage/preview.gif)
 

@@ -18,6 +18,7 @@ export class CanvasPlayer {
 
         onMounted(() => {
             this.playerContext = this.player.value.getContext('bitmaprenderer');
+            this.drawCanvas();
         });
 
         this.playerStore = usePlayerState();
@@ -30,7 +31,12 @@ export class CanvasPlayer {
         //     this.updateCanvasSize();
         // });
         // 属性变化后重新渲染
-        watch([() => this.trackState.trackList, () => this.canvasSize, () => this.playerStore.playStartFrame], () => this.drawCanvas(), { deep: true });
+        watch([
+            () => this.trackState.trackList,
+            () => this.canvasSize,
+            () => this.playerStore.playStartFrame,
+            () => this.playerStore.ingLoadingCount
+        ], () => this.drawCanvas(), { deep: true, flush: 'post' });
     }
     // getCanvasRect() {
     //     let { width, height } = this.containerSize;

@@ -7,6 +7,8 @@
 ## 功能
 ![](coverImage/map.png)
 
+FlyCut 会自动在当前浏览器中保存最近一次的时间轴和导入素材。重新打开同一站点即可继续编辑；清除站点数据会删除本地草稿。
+
 ## 预览
 ![](coverImage/preview.gif)
 

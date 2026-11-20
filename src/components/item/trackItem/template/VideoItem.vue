@@ -65,21 +65,22 @@ draggable="false"
      * 缩略图可以优化：
      * TODO：可视区域渲染
      */
-    const thumbnails = await videoDecoder.thumbnails(source);
+    try {
+      const thumbnails = await videoDecoder.thumbnails(source);
 
-    console.log(`生成${thumbnails.length}张缩略图耗时`, performance.now() - start, 'ms');
+      console.log(`生成${thumbnails.length}张缩略图耗时`, performance.now() - start, 'ms');
 
-    imgs.value = thumbnails.map(({ img }) => {
-      return URL.createObjectURL(img);
-    });
+      imgs.value = thumbnails.map(({ img }) => {
+        return URL.createObjectURL(img);
+      });
 
-    console.log('缩略图连接耗时', performance.now() - start, 'ms');
-    /**
-     * TODO: 视频声音波形图
-     */
-
-    loading.value = false;
-    store.ingLoadingCount--;
+      console.log('缩略图连接耗时', performance.now() - start, 'ms');
+    } catch (error) {
+      console.error('读取视频缩略图失败', error);
+    } finally {
+      loading.value = false;
+      store.ingLoadingCount--;
+    }
   }
 
   const el = ref();
