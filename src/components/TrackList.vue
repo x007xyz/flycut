@@ -215,6 +215,8 @@
       return;
     }
 
+    store.flushHistory();
+
     store.dragData.moveX = 0;
     store.dragData.moveY = 0;
 
