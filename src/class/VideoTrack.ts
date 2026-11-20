@@ -101,7 +101,7 @@ export class VideoTrack implements BaseTractItem {
       this.audio = new Audio(this.source.url);
     }
     if (this.audio?.paused) {
-      this.audio.currentTime = (currentFrame - this.start - this.offsetL) / 30;
+      this.audio.currentTime = (currentFrame - this.start + this.offsetL) / baseFps;
       console.log('🚀 ~ VideoTrack ~ play ~ this.audio.currentTime:', this.audio.currentTime);
       this.audio.play();
     }
