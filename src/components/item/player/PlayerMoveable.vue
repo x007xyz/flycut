@@ -24,8 +24,12 @@
     <Moveable
         ref="moveable"
         v-bind="draggableOptions"
+        @dragStart="startTransform"
         @drag="onDrag"
+        @dragEnd="endTransform"
+        @scaleStart="startTransform"
         @scale="onScale"
+        @scaleEnd="endTransform"
     />
   </div>
 </template>
@@ -34,7 +38,7 @@
   import { defaultMoveOptions } from '@/data/constant';
   import Moveable from 'vue3-moveable';
   import { computedItemShowArea, isVideo } from '@/utils/common';
-  import { ref, nextTick, reactive, computed, watch } from 'vue';
+  import { ref, nextTick, reactive, computed, watch, onBeforeUnmount } from 'vue';
   import { usePlayerState } from '@/stores/playerState';
   import { useTrackState } from '@/stores/trackState';
   import type { VideoTrack } from '@/class/VideoTrack';
@@ -98,7 +102,6 @@
         });
       }
     });
-    moveable.value && moveable.value.updateRect();
     return layerArr;
   });
   const draggableOptions = reactive({
@@ -120,6 +123,28 @@
     trackStore.trackList[lineindex].list[itemindex].centerY = y;
     target.style.transform = transform;
   }
+  let transforming = false;
+  function endTransform() {
+    if (!transforming) return;
+    transforming = false;
+    trackStore.historyDragging = false;
+    document.removeEventListener('mouseup', endTransform);
+    document.removeEventListener('pointerup', endTransform);
+    document.removeEventListener('pointercancel', endTransform);
+    document.removeEventListener('touchend', endTransform);
+    window.removeEventListener('blur', endTransform);
+  }
+  function startTransform() {
+    trackStore.flushHistory();
+    transforming = true;
+    trackStore.historyDragging = true;
+    document.addEventListener('mouseup', endTransform);
+    document.addEventListener('pointerup', endTransform);
+    document.addEventListener('pointercancel', endTransform);
+    document.addEventListener('touchend', endTransform);
+    window.addEventListener('blur', endTransform);
+  }
+  onBeforeUnmount(endTransform);
   function onScale(params: Record<string, any>) {
     let { target, scale, transform } = params;
     const { lineindex, itemindex } = target.dataset;
@@ -136,7 +161,8 @@
       moveable.value.dragStart(event);
     });
   }
-  watch([trackStore.selectTrackItem, targetList], () => {
+  watch(moveTarget, endTransform);
+  watch([trackStore.selectTrackItem, targetList], async() => {
     if (moveContainer.value && trackStore.selectTrackItem.line !== -1 && trackStore.selectTrackItem.index !== -1) {
       const targetTrack = trackStore.trackList[trackStore.selectTrackItem.line].list[trackStore.selectTrackItem.index];
       if (targetTrack && targetList.value.find(item => item.id === targetTrack.id)) {
@@ -147,6 +173,9 @@
     } else {
       moveTarget.value = null;
     }
+    if (!moveTarget.value) endTransform();
+    await nextTick();
+    moveable.value?.updateRect();
   }, { immediate: true, flush: 'post' });
 </script>
 

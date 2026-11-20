@@ -2,6 +2,8 @@ import { ref, reactive, computed } from 'vue';
 import { defineStore } from 'pinia';
 import { checkTrackListOverlap } from '@/utils/storeUtil';
 import type { Track, TrackLineItem } from '@/class/Track';
+import { useTimelineHistory } from './timelineHistory';
+import { usePlayerState } from './playerState';
 
 export const useTrackState = defineStore('trackState', () => {
   const dragData = reactive({ // 拖拽数据
@@ -29,6 +31,18 @@ export const useTrackState = defineStore('trackState', () => {
     line: -1,
     index: -1
   });
+  const historyDragging = ref(false);
+  const player = usePlayerState();
+  const history = useTimelineHistory(trackList, selectTrackItem,
+    () => moveTrackData.lineIndex !== -1 || historyDragging.value,
+    () => {
+      player.isPause = true;
+      trackList.forEach(({ list }) => list.forEach(track => {
+        if ('pause' in track) track.pause();
+      }));
+      player.playTargetTrackMap.forEach(track => track.pause?.());
+      player.playTargetTrackMap.clear();
+    });
   // 选中元素
   const selectResource = computed(() => {
     if (selectTrackItem.line === -1) {
@@ -111,7 +125,8 @@ export const useTrackState = defineStore('trackState', () => {
    * 查询是否存在同类型轨道，且无重叠部分，存在则插入，不存在则新建轨道
    * 没有轨道时，新增轨道插入
    */
-  function addTrack(newItem: Track) {
+  function addTrack(newItem: Track, flushPrevious = true) {
+    if (flushPrevious) history.flushHistory();
     const lines = trackList.filter(line => line.type === newItem.type);
 
     for (let index = 0; index < lines.length; index++) {
@@ -155,6 +170,8 @@ export const useTrackState = defineStore('trackState', () => {
   //   localStorage.trackList = JSON.stringify(trackList);
   // });
   return {
+    ...history,
+    historyDragging,
     moveTrackData,
     selectTrackItem,
     selectResource,

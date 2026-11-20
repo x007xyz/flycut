@@ -171,6 +171,8 @@
   }
 
   function mouseDownHandler(event: MouseEvent, type: string) {
+    store.flushHistory();
+    store.historyDragging = true;
     event.preventDefault();
     event.stopPropagation();
 
@@ -215,6 +217,7 @@
     };
 
     document.onmouseup = () => {
+      store.historyDragging = false;
       enableMove = false;
       document.onmouseup = null;
       document.onmousemove = null;

@@ -28,14 +28,22 @@ describe('VideoTrack.split', () => {
     left.offsetR = offsetR;
     left.end -= offsetL + offsetR;
     store.addTrack(left);
+    store.flushHistory();
 
     const originalEnd = store.frameCount;
     const cutFrame = start + 120;
     const right = left.split(cutFrame);
-    store.addTrack(right);
+    store.addTrack(right, false);
 
     expect(store.frameCount).toBe(originalEnd);
     expect(left).toMatchObject({ start, end: cutFrame, offsetL, offsetR: offsetR + originalEnd - cutFrame });
     expect(right).toMatchObject({ start: cutFrame, end: originalEnd, offsetL: offsetL + cutFrame - start, offsetR });
+    store.undo();
+    expect(store.trackList[0].list).toHaveLength(1);
+    expect(store.trackList[0].list[0]).toMatchObject({ start, end: originalEnd, offsetL, offsetR });
+    expect(store.frameCount).toBe(originalEnd);
+    store.redo();
+    expect(store.trackList[0].list).toHaveLength(2);
+    expect(store.frameCount).toBe(originalEnd);
   });
 });

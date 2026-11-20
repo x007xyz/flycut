@@ -76,12 +76,12 @@
   const icons = computed(() => [
     {
       title: '撤销',
-      disable: true,
+      disable: !trackStore.canUndo,
       icon: 'UndoIcon'
     },
     {
-      title: '前进',
-      disable: true,
+      title: '重做',
+      disable: !trackStore.canRedo,
       icon: 'RedoIcon'
     },
     {
@@ -102,16 +102,18 @@
       return;
     }
     if (type === 'DeleteIcon') {
+      trackStore.flushHistory();
       if (trackStore.selectTrackItem.line !== -1 && trackStore.selectTrackItem.index !== -1) {
         trackStore.removeTrack(trackStore.selectTrackItem.line, trackStore.selectTrackItem.index);
         trackStore.selectTrackItem.line = -1;
         trackStore.selectTrackItem.index = -1;
       }
     } else if (type === 'UndoIcon') {
-      // store._undo();
+      trackStore.undo();
     } else if (type === 'RedoIcon') {
-      // store._redo();
+      trackStore.redo();
     } else if (type === 'SplitIcon') {
+      trackStore.flushHistory();
       // 判断分割时间是否在视频内
       let splitTime = playerStore.playStartFrame;
       let active = trackStore.trackList[trackStore.selectTrackItem.line].list[trackStore.selectTrackItem.index];
@@ -119,7 +121,7 @@
       if (splitTime > active.start && splitTime < active.end && active.type === 'video') {
         const videoTrack = active.split(splitTime);
         videoTrack.resize({ width: playerStore.playerWidth, height: playerStore.playerHeight });
-        trackStore.addTrack(videoTrack);
+        trackStore.addTrack(videoTrack, false);
       }
     }
   }

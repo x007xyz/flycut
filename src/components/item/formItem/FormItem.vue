@@ -44,7 +44,7 @@
   <div class="formItem" v-else-if="componentData.dataType === 'Slider'">
     <span class="formTitle" v-show="componentData.name">{{ componentData.name }}</span>
     <div class="formContent">
-      <el-slider v-model="formValue" v-bind="componentData.attr" />
+      <el-slider :model-value="sliderValue" v-bind="componentData.attr" @input="formValue = $event" />
     </div>
     <span class="ml-2 w-12 text-center text-sm leading-8">{{ formValue }}{{ componentData.label }}</span>
   </div>
@@ -127,20 +127,24 @@
   });
   const trackStore = useTrackState();
   const activeIndex = ref(props.componentData.defaultValue); // 内部状态
-  const { selectResource, selectTrackItem, trackList } = storeToRefs(trackStore);
+  const { selectResource } = storeToRefs(trackStore);
   const formValue = computed({
     get() {
       if (selectResource.value) {
-        return get(trackList.value[selectTrackItem.value.line].list[selectTrackItem.value.index], props.componentData.mappingKey);
+        return get(selectResource.value, props.componentData.mappingKey);
       } else {
         return null;
       }
     },
     set(value) {
       if (selectResource.value && props.componentData.mappingKey) {
-        set(trackList.value[selectTrackItem.value.line].list[selectTrackItem.value.index], props.componentData.mappingKey, value);
+        set(selectResource.value, props.componentData.mappingKey, value);
       }
     }
+  });
+  const sliderValue = computed(() => {
+    const { min = 0, max = 100 } = props.componentData.attr || {};
+    return typeof formValue.value === 'number' ? Math.min(max, Math.max(min, formValue.value)) : formValue.value;
   });
 </script>
 
