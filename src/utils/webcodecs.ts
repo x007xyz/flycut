@@ -147,12 +147,20 @@ export const splitClip = async (source: AudioClip | MP4Clip, { offsetL, offsetR,
   }
   if (offsetR === 0) return clip;
 
+  let keepClip = false;
   try {
     const [before, after] = await clip.split((frameCount - offsetR - offsetL) * UnitFrame2μs);
     after.destroy();
     return before;
+  } catch (error) {
+    if (!(clip instanceof MP4Clip) || !(error instanceof Error) || error.message !== 'Not found video sample by time') {
+      throw error;
+    }
+    // WebAV cannot split the final sample; the sprite already limits the rendered duration.
+    keepClip = true;
+    return clip === source ? source.clone() : clip;
   } finally {
-    if (clip !== source) clip.destroy();
+    if (!keepClip && clip !== source) clip.destroy();
   }
 }
 
