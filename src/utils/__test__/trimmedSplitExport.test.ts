@@ -29,6 +29,7 @@ it('prepares a tail-trimmed split for export when its end is within the last vid
     split: vi.fn().mockRejectedValue(new Error('Not found video sample by time')),
     destroy: vi.fn()
   });
+  remainder.tickInterceptor = async(_, frame) => frame;
   const source = Object.assign(new MP4Clip(new ReadableStream()), {
     split: vi.fn().mockResolvedValue([discardedHead, remainder])
   });
@@ -43,6 +44,22 @@ it('prepares a tail-trimmed split for export when its end is within the last vid
     expect(remainder.destroy).not.toHaveBeenCalled();
     expect(sprite).toHaveProperty('clip', remainder);
     expect(sprite.time).toEqual({ offset: 90 * UnitFrame2μs, duration: 89 * UnitFrame2μs });
+
+    const close = vi.fn();
+    const frame = {
+      video: { close } as unknown as Awaited<ReturnType<MP4Clip['tick']>>['video'],
+      audio: [Float32Array.of(1)],
+      state: 'success' as const
+    };
+    const end = sprite.time.duration;
+    await expect(remainder.tickInterceptor(end - 1, frame)).resolves.toBe(frame);
+    expect(close).not.toHaveBeenCalled();
+    await expect(remainder.tickInterceptor(end + 1, frame)).resolves.toEqual({
+      video: undefined,
+      audio: [],
+      state: 'done'
+    });
+    expect(close).toHaveBeenCalledOnce();
   } finally {
     decode.mockRestore();
   }
