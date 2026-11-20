@@ -149,6 +149,7 @@ test('autosave restores split video, edited text and the playhead, then resumes 
   await playControl.click();
   await expect(page.locator('html')).toHaveAttribute('data-test-playing-src', /^blob:/);
   await playControl.click();
+  await page.locator(textClip).click({ position: { x: 12, y: 14 }});
   await page.getByPlaceholder('请输入内容').fill('Continued after reload');
   await expect.poll(() => readDraft(page)).toContain('Continued after reload');
 });
