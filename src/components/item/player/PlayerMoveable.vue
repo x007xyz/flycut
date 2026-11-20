@@ -24,8 +24,12 @@
     <Moveable
         ref="moveable"
         v-bind="draggableOptions"
+        @dragStart="startTransform"
         @drag="onDrag"
+        @dragEnd="endTransform"
+        @scaleStart="startTransform"
         @scale="onScale"
+        @scaleEnd="endTransform"
     />
   </div>
 </template>
@@ -34,7 +38,7 @@
   import { defaultMoveOptions } from '@/data/constant';
   import Moveable from 'vue3-moveable';
   import { computedItemShowArea, isVideo } from '@/utils/common';
-  import { ref, nextTick, reactive, computed, watch } from 'vue';
+  import { ref, nextTick, reactive, computed, watch, onBeforeUnmount } from 'vue';
   import { usePlayerState } from '@/stores/playerState';
   import { useTrackState } from '@/stores/trackState';
   import type { VideoTrack } from '@/class/VideoTrack';
@@ -120,6 +124,18 @@
     trackStore.trackList[lineindex].list[itemindex].centerY = y;
     target.style.transform = transform;
   }
+  let transforming = false;
+  function startTransform() {
+    trackStore.flushHistory();
+    transforming = true;
+    trackStore.historyDragging = true;
+  }
+  function endTransform() {
+    if (!transforming) return;
+    transforming = false;
+    trackStore.historyDragging = false;
+  }
+  onBeforeUnmount(endTransform);
   function onScale(params: Record<string, any>) {
     let { target, scale, transform } = params;
     const { lineindex, itemindex } = target.dataset;
