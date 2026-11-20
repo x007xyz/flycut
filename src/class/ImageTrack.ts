@@ -1,7 +1,7 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
 import { imageDecoder } from '@/utils/webcodecs';
-import { ImgClip, OffscreenSprite } from '@webav/av-cliper';
+import { OffscreenSprite } from '@webav/av-cliper';
 import { UnitFrame2μs } from '@/data/trackConfig';
 
 export interface ImageSource {
@@ -69,8 +69,10 @@ export class ImageTrack implements BaseTractItem {
   draw(ctx: CanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
     const frame = Math.max(frameIndex - this.start, 0); // 默认展示首帧
     return imageDecoder.getFrame(this.source.format, this.source.id, frame).then(vf => {
-        if (vf) {
+        try {
           ctx.drawImage(vf, 0, 0, this.source.width, this.source.height, this.getDrawX(width), this.getDrawY(height), this.drawWidth, this.drawHeight);
+        } finally {
+          vf.close();
         }
     });
   }
@@ -88,12 +90,8 @@ export class ImageTrack implements BaseTractItem {
   }
   // 生成合成对象
   async combine(playerSize: { width: number, height: number }, outputRatio: number) {
-    const frames = await imageDecoder.decode({ id: this.source.id });
-    if (!frames) {
-      throw new Error('frames is not ready');
-    }
-    const clip = new ImgClip(frames);
-    const spr = new OffscreenSprite(clip);
+    const clip = await imageDecoder.decode({ id: this.source.id, type: this.source.format });
+    const spr = new OffscreenSprite(await clip.clone());
     // TODO：需要支持裁剪
     spr.time = { offset: this.start * UnitFrame2μs, duration: this.frameCount * UnitFrame2μs };
     spr.rect.x = this.getDrawX(playerSize.width) * outputRatio;

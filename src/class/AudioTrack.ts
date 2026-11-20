@@ -60,10 +60,10 @@ export class AudioTrack implements BaseTractItem {
   // 生成合成对象
   async combine() {
     const audio = await audioDecoder.decode({ id: this.source.id });
-    const clip = await splitClip(audio, { offsetL: this.offsetL, offsetR: this.offsetR, frameCount: this.frameCount });
-    if (!clip) {
+    if (!audio) {
       throw new Error('clip is not ready');
     }
+    const clip = await splitClip(audio, { offsetL: this.offsetL, offsetR: this.offsetR, frameCount: this.frameCount });
     const spr = new OffscreenSprite(clip);
     // TODO：需要支持裁剪
     spr.time = { offset: this.start * UnitFrame2μs, duration: (this.end - this.start) * UnitFrame2μs };

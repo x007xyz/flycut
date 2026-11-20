@@ -2,7 +2,7 @@
 
 import type { VideoSource } from "@/class/VideoTrack";
 import { baseFps } from "@/data/trackConfig";
-import { Combinator, MP4Clip, OffscreenSprite, decodeImg, AudioClip } from "@webav/av-cliper";
+import { MP4Clip, ImgClip, AudioClip } from "@webav/av-cliper";
 import { file, write } from "opfs-tools";
 import { UnitFrame2μs } from '@/data/trackConfig';
 
@@ -73,7 +73,7 @@ class VideoDecoder {
   async getFrame(url: string, frameIndex: number) {
     let clip = this.#decoderMap.get(url);
     if (!clip) {
-      clip = await this.decode({ url })
+      clip = await this.decode({ id: url })
     }
 
     // tick根据时间获取帧，可能存在这一时间帧为空的情况，修改为在范围内寻找帧
@@ -87,43 +87,23 @@ class VideoDecoder {
 }
 
 class ImageDecoder {
-  #decoderMap = new Map<string, VideoFrame[]>();
+  #decoderMap = new Map<string, ImgClip>();
   async decode({ id, stream, type }: { id: string, stream?: ReadableStream<Uint8Array>, type?: string }) {
-    console.log("🚀 ~ ImageDecoder ~ decode ~ id:", id)
-
-    if (this.#decoderMap.has(id)) {
-      return this.#decoderMap.get(id);
-    }
+    const cached = this.#decoderMap.get(id);
+    if (cached) return cached;
 
     stream = await writeFile(id, stream);
 
-    if (!type) {
-      throw new Error("type is not ready");
-    }
-
-    // 接收的数据可能是远程数据（URL），也可能是本地数据（file）
-    // 如果是远程数据，可以直接使用URL作为source，
-    // 如果是本地数据，可以使用FileReader读取数据，然后使用URL.createObjectURL创建URL作为source，但是这样缓存数据没法还原为File对象
-    // 要解决这个问题，可以引入https://hughfenghen.github.io/posts/2024/03/14/web-storage-and-opfs/
-    // 但是这样会增加复杂度，所以暂时不考虑，
-    // TODO: 使用OPFS解决本地数据问题
-    const frames = await decodeImg(
-      stream,
-      type,
-    );
-
-    // 存储解析后的帧
-    this.#decoderMap.set(id, frames);
-
-    return frames;
+    const clip = type === 'image/gif' || type === 'image/webp' || type === 'image/png' || type === 'image/avif'
+      ? new ImgClip({ type, stream })
+      : new ImgClip(stream);
+    await clip.ready;
+    this.#decoderMap.set(id, clip);
+    return clip;
   }
-  async getFrame(type: string, url: string, frameIndex: number) {
-    let frames = this.#decoderMap.get(url);
-    if (!frames) {
-      await this.decode({ url, type });
-      frames = this.#decoderMap.get(url);
-    }
-    return frames?.[frameIndex % frames.length];
+  async getFrame(type: string, id: string, frameIndex: number) {
+    const clip = await this.decode({ id, type });
+    return (await clip.tick(frameIndex * UnitFrame2μs)).video;
   }
 }
 
@@ -156,15 +136,24 @@ class AudioDecoder {
   }
 }
 
-export const splitClip = async (source: IClip, { offsetL, offsetR, frameCount } : { offsetL: number, offsetR: number, frameCount: number }) => {
-  if (offsetL === 0 && offsetR === 0) {
-    return source
+export const splitClip = async (source: AudioClip | MP4Clip, { offsetL, offsetR, frameCount } : { offsetL: number, offsetR: number, frameCount: number }) => {
+  if (offsetL === 0 && offsetR === 0) return source.clone();
+
+  let clip = source;
+  if (offsetL > 0) {
+    const [before, after] = await source.split(offsetL * UnitFrame2μs);
+    before.destroy();
+    clip = after;
   }
-  const start = offsetL * UnitFrame2μs
-  // 使用start裁剪视频
-  const clip = offsetL === 0 ? source : (await source.split(start))[1];
-  const end = (frameCount - offsetR - offsetL) * UnitFrame2μs;
-  return offsetR === 0 ? clip : (await clip.split(end))[0];
+  if (offsetR === 0) return clip;
+
+  try {
+    const [before, after] = await clip.split((frameCount - offsetR - offsetL) * UnitFrame2μs);
+    after.destroy();
+    return before;
+  } finally {
+    if (clip !== source) clip.destroy();
+  }
 }
 
 export const videoDecoder = new VideoDecoder();

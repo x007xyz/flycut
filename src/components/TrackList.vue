@@ -6,6 +6,8 @@
         ref="trackList"
         @scroll="handleScroll"
         @wheel="handleWheel"
+        @dragover="onFileDragOver"
+        @drop="onFileDrop"
         @click="setSelectTract($event, -1, -1)"
     >
       <TimeLine
@@ -27,7 +29,7 @@
         <template v-if="showTrackList.length === 0">
           <div class="flex justify-center items-center h-24 m-auto w-2/3 dark:bg-gray-500 bg-gray-200  rounded-md text-sm border-dashed border-2 dark:border-gray-500 border-gray-200 hover:dark:border-blue-300 hover:border-blue-400">
             <VideoIcon class="text-xl mr-4" />
-            将素材拖拽到这里，开始编辑你的大作吧~
+            将 MP4 视频拖拽到这里，开始编辑你的大作吧~
           </div>
         </template>
         <div
@@ -77,6 +79,8 @@
   import { debounce, throttle } from 'lodash-es';
   import { formatTime, isVideo, getJsonParse } from '@/utils/common';
   import type { VideoSource } from '@/class/VideoTrack';
+  import { importVideo } from '@/utils/importVideo';
+  import { ElMessage } from 'element-plus';
   const store = useTrackState();
   const playerStore = usePlayerState();
   const trackList = ref();
@@ -132,6 +136,24 @@
     const startFrane = playFrame < 0 ? 0 : playFrame > store.frameCount ? store.frameCount : playFrame;
     playerStore.isPause = true;
     playerStore.playStartFrame = startFrane;
+  }
+
+  function onFileDragOver(event: DragEvent) {
+    if (!event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }
+
+  async function onFileDrop(event: DragEvent) {
+    const files = event.dataTransfer?.files;
+    if (!files?.length) return;
+    event.preventDefault();
+    const video = Array.from(files).find(file => file.type === 'video/mp4' || /\.mp4$/i.test(file.name));
+    if (!video) {
+      ElMessage.warning('请拖入 MP4 视频');
+      return;
+    }
+    await importVideo(video);
   }
   let maxDelta = 0;
 

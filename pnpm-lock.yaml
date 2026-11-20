@@ -24,11 +24,11 @@ importers:
         specifier: ^10.9.0
         version: 10.9.0(vue@3.2.47)
       '@webav/av-canvas':
-        specifier: 0.9.0-beta.21
-        version: 0.9.0-beta.21
+        specifier: 1.2.8
+        version: 1.2.8
       '@webav/av-cliper':
-        specifier: 0.9.0-beta.21
-        version: 0.9.0-beta.21
+        specifier: 1.2.8
+        version: 1.2.8
       axios:
         specifier: ^1.3.2
         version: 1.3.2
@@ -416,10 +416,6 @@ packages:
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
-
-  '@babel/runtime@7.24.7':
-    resolution: {integrity: sha512-UwgBRMjJP+xv857DCngvqXI3Iq6J4v0wXmwc6sapg+zyhbwmQX67LUEFrkK5tbyJ30jGuG3ZvWpBiB9LCy1kWw==}
-    engines: {node: '>=6.9.0'}
 
   '@babel/standalone@7.20.15':
     resolution: {integrity: sha512-B3LmZ1NHlTb2eFEaw8rftZc730Wh9MlmsH8ubb6IjsNoIk9+SQ2aAA0nrm/1806+PftPRAACPClmKTu8PG7Tew==}
@@ -931,9 +927,6 @@ packages:
   '@types/chai@4.3.4':
     resolution: {integrity: sha512-KnRanxnpfpjUTqTCXslZSEdLfXExwgNxYPdiO2WGUj8+HDjFi8R3k5RVKPeSCzLjCcshCAtVO2QBbVuAV4kTnw==}
 
-  '@types/dom-webcodecs@0.1.11':
-    resolution: {integrity: sha512-yPEZ3z7EohrmOxbk/QTAa0yonMFkNkjnVXqbGb7D4rMr+F1dGQ8ZUFxXkyLLJuiICPejZ0AZE9Rrk9wUCczx4A==}
-
   '@types/estree@1.0.0':
     resolution: {integrity: sha512-WulqXMDUTYAXCjZnk6JtIHPigp55cVtDgDrO2gHRwhyJto21+1zbVCtOYB2L1F9w4qCQ0rOGWBnBe0FNTiEJIQ==}
 
@@ -1030,10 +1023,6 @@ packages:
   '@typescript-eslint/visitor-keys@5.50.0':
     resolution: {integrity: sha512-cdMeD9HGu6EXIeGOh2yVW6oGf9wq8asBgZx7nsR/D36gTfQ0odE5kcRYe5M81vjEFAcPeugXrHg78Imu55F6gg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
-
-  '@videojs/vhs-utils@3.0.5':
-    resolution: {integrity: sha512-PKVgdo8/GReqdx512F+ombhS+Bzogiofy1LgAj4tN8PfdBx3HSS7V5WfJotKTqtOWGwVfSWsrYN/t09/DSryrw==}
-    engines: {node: '>=8', npm: '>=5'}
 
   '@vitejs/plugin-basic-ssl@1.0.1':
     resolution: {integrity: sha512-pcub+YbFtFhaGRTo1832FQHQSHvMrlb43974e2eS8EKleR3p1cDdkJFPci1UhwkEf1J9Bz+wKBSzqpKp7nNj2A==}
@@ -1188,14 +1177,17 @@ packages:
   '@vueuse/shared@9.12.0':
     resolution: {integrity: sha512-TWuJLACQ0BVithVTRbex4Wf1a1VaRuSpVeyEd4vMUWl54PzlE0ciFUshKCXnlLuD0lxIaLK4Ypj3NXYzZh4+SQ==}
 
-  '@webav/av-canvas@0.9.0-beta.21':
-    resolution: {integrity: sha512-Z9rUTyYHE6aTLu/Sw574yAM8cwDQWPrM5HpzgyPzA7akaB4fRympusCK880C2C0dH3vXurjf+W7tHcbir1t8rw==}
+  '@webav/av-canvas@1.2.8':
+    resolution: {integrity: sha512-j7wvlmdQcwSeMDPiOjfnw2LR/+F/yqYScs9dzwh8SHQre6nnnxS/eOPBghhgVx/RlqFk6VR4UYtnXlhfgnhWtA==}
 
-  '@webav/av-cliper@0.9.0-beta.21':
-    resolution: {integrity: sha512-z/pank6XYVp1Q1yX2heBfGLvxTVa1iEX8uK5nSr9EcOk7Vh4NSjMxfw0b+m4O4h8wH5EL+CbFkzxbkexYNa4yw==}
+  '@webav/av-cliper@1.2.8':
+    resolution: {integrity: sha512-lxCXgP5AJsl+6xRo1puU5lTv7rAsxX9StQVK8xYdbg02p9FswCt76iTPqNxmlJ0ZfV1g+lmyNufLXu/qBAnJnA==}
 
-  '@webav/mp4box.js@0.5.3-fenghen':
-    resolution: {integrity: sha512-jAN15I3Po1Z6Ns02iknb6KGbird9rd1h9TGldzbwsar+88ZlHd+oVjOQnFavBdNDc5vmULUnldcWGDdKc02npw==}
+  '@webav/internal-utils@1.2.8':
+    resolution: {integrity: sha512-ZiEXl4U6PRqotkux0eTUdVn5zxbzXYm4Xfjt+HvH5bowwGSJVho/mmbPrdPf3ZRtfIu0aWCWa04LUDBQuY5ltA==}
+
+  '@webav/mp4box.js@0.5.7':
+    resolution: {integrity: sha512-KgScEtDpiLnWvj1Rj8Ri9fDWxTjfdNr7cmY/PT88EmttHh6cLxMAeyD/W8Vydes4z7qV/c5VDAaP4cTlaO0E9g==}
 
   abab@2.0.6:
     resolution: {integrity: sha512-j2afSsaIENvHZN2B8GOpF566vZ5WVk5opAiMTvWgaQT8DkbOqsTfvNAvHoRGU2zzP8cPoqys+xHTRDWW8L+/BA==}
@@ -1580,9 +1572,6 @@ packages:
   dom-serializer@1.4.1:
     resolution: {integrity: sha512-VHwB3KfrcOOkelEG2ZOfxqLZdfkil8PtJi4P8N2MMXucZq2yLp75ClViUlOVwyoHEDjYU433Aq+5zWP61+RGag==}
 
-  dom-walk@0.1.2:
-    resolution: {integrity: sha512-6QvTW9mrGeIegrFXdtQi9pk7O/nSK6lSdXW2eqUspN5LWD7UTji2Fqw5V2YLjBpHEoU9Xl/eUWNpDeZvoyOv2w==}
-
   domelementtype@2.3.0:
     resolution: {integrity: sha512-OLETBj6w0OsagBwdXnPdN0cnMfF9opN69co+7ZrbfPGrdpPVNBUj02spi6B1N7wChLQiPn4CSH/zJvXw56gmHw==}
 
@@ -1892,9 +1881,6 @@ packages:
   glob@8.1.0:
     resolution: {integrity: sha512-r8hpEjiQEYlF2QU0df3dS+nxxSIreXQS1qRhMJM0Q5NDdR386C7jb7Hwwod8Fgiuex+k0GFjgft18yvxm5XoCQ==}
     engines: {node: '>=12'}
-
-  global@4.4.0:
-    resolution: {integrity: sha512-wv/LAoHdRE3BeTGz53FAamhGlPLhlssK45usmGFThIi4XqnBmjKQ16u+RNbP7WvigRZDxUsM0J3gcQ5yicaL0w==}
 
   globals@11.12.0:
     resolution: {integrity: sha512-WOBp/EEGUiIsJSp7wcv/y6MO+lV9UoncWqxuFfm8eBwzWNgyfBd6Gz+IeKQ9jCmyhoH99g15M3T+QaVHFjizVA==}
@@ -2283,9 +2269,6 @@ packages:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}
     engines: {node: '>=10'}
 
-  m3u8-parser@7.1.0:
-    resolution: {integrity: sha512-7N+pk79EH4oLKPEYdgRXgAsKDyA/VCo0qCHlUwacttQA0WqsjZQYmNfywMvjlY9MpEBVZEt0jKFd73Kv15EBYQ==}
-
   magic-string@0.25.9:
     resolution: {integrity: sha512-RmF0AsMzgt25qzqqLc1+MbHmhdx0ojF2Fvs4XnOqz2ZOBXzzkEwc/dJQZCYHAn7v1jbVOjAZfK8msRn4BxO4VQ==}
 
@@ -2349,9 +2332,6 @@ packages:
   mimic-fn@4.0.0:
     resolution: {integrity: sha512-vqiC06CuhBTUdZH+RYl8sFrL096vA45Ok5ISO6sE/Mr1jRbGH4Csnhi8f3wKVl7x8mO4Au7Ir9D3Oyv1VYMFJw==}
     engines: {node: '>=12'}
-
-  min-document@2.19.0:
-    resolution: {integrity: sha512-9Wy1B3m3f66bPPmU5hdA4DR4PB2OfDU/+GS3yAB7IQozE3tqXaVv2zOjgla7MEGSRv95+ILmOuvhLkOK6wJtCQ==}
 
   mini-svg-data-uri@1.4.4:
     resolution: {integrity: sha512-r9deDe9p5FJUPZAk3A59wGH7Ii9YrjjWw0jmw/liSbHl2CHiyXj6FcDXDu2K3TjVAXqiJdaw3xxwlZZr9E6nHg==}
@@ -2514,8 +2494,8 @@ packages:
   opfs-tools@0.4.1:
     resolution: {integrity: sha512-yXmcZ7LVDzOxfTV1eXdWQL20rm+8f1uQqTLYD/kuh6d/7qBWoAXKcYqOQITfReyNR9k/6pOIdgmIT1FEACMeJw==}
 
-  opfs-tools@0.5.1:
-    resolution: {integrity: sha512-3efBndh+72eOqWbf1ZQNOTvBMT1xE5nYFn1anyS5BFGnDrMHVe6zhEepfvu0JPuuSbUI9VCfSmMHylyb7pcyZQ==}
+  opfs-tools@0.7.5:
+    resolution: {integrity: sha512-dXLd3n0JlYriBAoyxDsTVBYNhpITQgC8Je6B7nq9idI7RFSsQEtKlVQIb7wpBa7BsZJrfAim5CFPOrccniOMHQ==}
 
   optionator@0.8.3:
     resolution: {integrity: sha512-+IW9pACdk3XWmmTXG8m3upGUJst5XRGzxMRjXzAuJ1XnIFNvfhjjIuYkDvysnPQ7qzqVzLt78BCruntqRhWQbA==}
@@ -2861,10 +2841,6 @@ packages:
   process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
 
-  process@0.11.10:
-    resolution: {integrity: sha512-cdGef/drWFoydD1JsMzuFf8100nZl+GT+yacc2bEced5f9Rjk4z+WtFUTBu9PhOi9j/jfmBPu0mMEY4wIdAF8A==}
-    engines: {node: '>= 0.6.0'}
-
   proto-list@1.2.4:
     resolution: {integrity: sha512-vtK/94akxsTMhe0/cbfpR+syPuszcuwhqVjJq26CuNDgFGj682oRBXOP5MJpv2r7JtE8MsiepGIqvvOTBwn2vA==}
 
@@ -2933,9 +2909,6 @@ packages:
   readdirp@3.6.0:
     resolution: {integrity: sha512-hOS089on8RduqdbhvQ5Z37A0ESjsqz6qnRcffsMU3495FuTdqSm+7bhJ29JvIOsBDEEnan5DPu9t3To9VRlMzA==}
     engines: {node: '>=8.10.0'}
-
-  regenerator-runtime@0.14.1:
-    resolution: {integrity: sha512-dYnhHh0nJoMfnkZs6GmmhFknAGRrLznOu5nc9ML+EJxGvrx6H7teuevqVqCuPcPK//3eDrrjQhehXVx9cnkGdw==}
 
   regexp.prototype.flags@1.4.3:
     resolution: {integrity: sha512-fjggEOO3slI6Wvgjwflkc4NFRCTZAu5CnNfBd5qOMYhWdn67nJBBu34/TkD++eeFmd8C9r9jfXJ27+nSiRkSUA==}
@@ -3344,9 +3317,6 @@ packages:
 
   url-parse@1.5.10:
     resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
-
-  url-toolkit@2.2.5:
-    resolution: {integrity: sha512-mtN6xk+Nac+oyJ/PrI7tzfmomRVNFIWKUbG8jdYFt52hxbiReFAXIjYskvu64/dvuW71IcB7lV8l0HvZMac6Jg==}
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
@@ -3874,10 +3844,6 @@ snapshots:
       '@babel/helper-create-class-features-plugin': 7.24.4(@babel/core@7.24.4)
       '@babel/helper-plugin-utils': 7.24.0
       '@babel/plugin-syntax-typescript': 7.24.1(@babel/core@7.24.4)
-
-  '@babel/runtime@7.24.7':
-    dependencies:
-      regenerator-runtime: 0.14.1
 
   '@babel/standalone@7.20.15': {}
 
@@ -4527,8 +4493,6 @@ snapshots:
 
   '@types/chai@4.3.4': {}
 
-  '@types/dom-webcodecs@0.1.11': {}
-
   '@types/estree@1.0.0': {}
 
   '@types/js-cookie@3.0.2': {}
@@ -4644,12 +4608,6 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 5.50.0
       eslint-visitor-keys: 3.3.0
-
-  '@videojs/vhs-utils@3.0.5':
-    dependencies:
-      '@babel/runtime': 7.24.7
-      global: 4.4.0
-      url-toolkit: 2.2.5
 
   '@vitejs/plugin-basic-ssl@1.0.1(vite@4.1.1(@types/node@18.11.18)(sass@1.75.0))':
     dependencies:
@@ -4904,19 +4862,23 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
-  '@webav/av-canvas@0.9.0-beta.21':
+  '@webav/av-canvas@1.2.8':
     dependencies:
-      '@webav/av-cliper': 0.9.0-beta.21
+      '@webav/av-cliper': 1.2.8
+      '@webav/internal-utils': 1.2.8
 
-  '@webav/av-cliper@0.9.0-beta.21':
+  '@webav/av-cliper@1.2.8':
     dependencies:
-      '@types/dom-webcodecs': 0.1.11
-      '@webav/mp4box.js': 0.5.3-fenghen
-      m3u8-parser: 7.1.0
-      opfs-tools: 0.5.1
+      '@webav/internal-utils': 1.2.8
+      '@webav/mp4box.js': 0.5.7
+      opfs-tools: 0.7.5
       wave-resampler: 1.0.0
 
-  '@webav/mp4box.js@0.5.3-fenghen': {}
+  '@webav/internal-utils@1.2.8':
+    dependencies:
+      '@webav/mp4box.js': 0.5.7
+
+  '@webav/mp4box.js@0.5.7': {}
 
   abab@2.0.6: {}
 
@@ -5327,8 +5289,6 @@ snapshots:
       domelementtype: 2.3.0
       domhandler: 4.3.1
       entities: 2.2.0
-
-  dom-walk@0.1.2: {}
 
   domelementtype@2.3.0: {}
 
@@ -5767,11 +5727,6 @@ snapshots:
       minimatch: 5.1.6
       once: 1.4.0
 
-  global@4.4.0:
-    dependencies:
-      min-document: 2.19.0
-      process: 0.11.10
-
   globals@11.12.0: {}
 
   globals@13.20.0:
@@ -6156,12 +6111,6 @@ snapshots:
     dependencies:
       yallist: 4.0.0
 
-  m3u8-parser@7.1.0:
-    dependencies:
-      '@babel/runtime': 7.24.7
-      '@videojs/vhs-utils': 3.0.5
-      global: 4.4.0
-
   magic-string@0.25.9:
     dependencies:
       sourcemap-codec: 1.4.8
@@ -6211,10 +6160,6 @@ snapshots:
   mimic-fn@2.1.0: {}
 
   mimic-fn@4.0.0: {}
-
-  min-document@2.19.0:
-    dependencies:
-      dom-walk: 0.1.2
 
   mini-svg-data-uri@1.4.4: {}
 
@@ -6364,7 +6309,7 @@ snapshots:
 
   opfs-tools@0.4.1: {}
 
-  opfs-tools@0.5.1: {}
+  opfs-tools@0.7.5: {}
 
   optionator@0.8.3:
     dependencies:
@@ -6678,8 +6623,6 @@ snapshots:
 
   process-nextick-args@2.0.1: {}
 
-  process@0.11.10: {}
-
   proto-list@1.2.4: {}
 
   proxy-from-env@1.1.0: {}
@@ -6789,8 +6732,6 @@ snapshots:
   readdirp@3.6.0:
     dependencies:
       picomatch: 2.3.1
-
-  regenerator-runtime@0.14.1: {}
 
   regexp.prototype.flags@1.4.3:
     dependencies:
@@ -7215,8 +7156,6 @@ snapshots:
     dependencies:
       querystringify: 2.2.0
       requires-port: 1.0.0
-
-  url-toolkit@2.2.5: {}
 
   util-deprecate@1.0.2: {}
 

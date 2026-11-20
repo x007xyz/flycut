@@ -1,6 +1,6 @@
 type BufferSource = ArrayBuffer | ArrayBufferView;
 
-interface FileSystemWritableFileStream {
+interface FileSystemWritableFileStream extends WritableStream {
   write(data: string | BufferSource | Blob): Promise<void>;
   close(): Promise<void>;
 }
