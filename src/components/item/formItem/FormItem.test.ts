@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
+import { ElSlider } from 'element-plus';
 import FormItem from './FormItem.vue';
 import { useTrackState } from '@/stores/trackState';
 
@@ -19,6 +20,32 @@ vi.mock('element-plus/es/components/input-number/style/css', () => ({}));
 vi.mock('element-plus/es/components/switch/style/css', () => ({}));
 
 describe('selected track attribute values', () => {
+  it('displays out-of-range scale without writing it back, but accepts user input', async() => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useTrackState();
+    store.addTrack({ id: 'text', type: 'text', start: 0, end: 90, scale: 100, source: {}} as any);
+    store.flushHistory();
+    const wrapper = mount(FormItem, {
+      props: { componentData: { dataType: 'Slider', mappingKey: 'scale', attr: { min: 1, max: 200 }}},
+      global: { plugins: [pinia], components: { ElSlider }}
+    });
+    store.selectResource.scale = 350;
+    await nextTick();
+    await nextTick();
+    expect(store.selectResource.scale).toBe(350);
+    expect(wrapper.findComponent(ElSlider).props('modelValue')).toBe(200);
+    expect(wrapper.text()).toContain('350');
+    await wrapper.get('[role="slider"]').trigger('keydown', { key: 'ArrowLeft' });
+    await nextTick();
+    expect(store.selectResource.scale).toBe(199);
+    store.selectResource.scale = -10;
+    await nextTick();
+    expect(store.selectResource.scale).toBe(-10);
+    expect(wrapper.findComponent(ElSlider).props('modelValue')).toBe(1);
+    wrapper.unmount();
+    pinia._s.forEach(item => item.$dispose());
+  });
   it('refreshes edited values after undo and redo replace a track at the same selection', async() => {
     const pinia = createPinia();
     setActivePinia(pinia);
