@@ -36,7 +36,7 @@ export const Options = {
                                     children: [
                                         mappingFormItem('Number', { attr: {
                                                 controlsPosition: 'right'
-                                            }, name: '字号', mappingKey: 'fontSize', defaultValue: 40 }),
+                                            }, name: '字号', mappingKey: 'fontSize', defaultValue: 24 }),
                                         mappingFormItem('TextArea', { attr: {
                                                 autosize: {
                                                     minRows: 1,

@@ -57,7 +57,7 @@
   <div class="formItem" v-else-if="componentData.dataType === 'Number'">
     <span class="formTitle" v-show="componentData.name">{{ componentData.name }}</span>
     <div class="formContent">
-      <el-input-number v-model="formValue" v-bind="componentData.attr" />
+      <el-input-number v-model="formValue" :value-on-clear="componentData.defaultValue ?? 0" v-bind="componentData.attr" />
     </div>
   </div>
   <div class="formItem" v-else-if="componentData.dataType === 'Radio'">

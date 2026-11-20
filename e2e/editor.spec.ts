@@ -163,6 +163,22 @@ test('deleting the last clip stays deleted after an immediate reload', async({ p
   expect(JSON.parse(await readDraft(page) ?? '').lines).toEqual([]);
 });
 
+test('clearing a numeric text property resets it without invalidating the draft', async({ page }) => {
+  await addText(page, 'Keep this text');
+  const fontForm = page.locator('.formItem').filter({ hasText: '字号' });
+  const fontSize = fontForm.getByRole('spinbutton');
+  await fontSize.fill('42');
+  await fontSize.press('Tab');
+  await expect.poll(() => readDraft(page)).toContain('"fontSize":42');
+  await fontSize.fill('');
+  await fontSize.press('Tab');
+  await expect.poll(() => readDraft(page)).toContain('"fontSize":24');
+  await page.reload();
+  await page.locator(textClip).click({ position: { x: 12, y: 14 }});
+  await expect(fontSize).toHaveValue('24');
+  await expect(page.getByPlaceholder('请输入内容')).toHaveValue('Keep this text');
+});
+
 test('missing cached media does not prevent restoring text or overwrite the draft on load', async({ page }) => {
   await dropFile(page);
   await expectImported(page);
