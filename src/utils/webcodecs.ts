@@ -2,9 +2,8 @@
 
 import type { VideoSource } from "@/class/VideoTrack";
 import { baseFps } from "@/data/trackConfig";
-import { Combinator, MP4Clip, OffscreenSprite, decodeImg, AudioClip } from "@webav/av-cliper";
+import { MP4Clip, decodeImg, AudioClip } from "@webav/av-cliper";
 import { file, write } from "opfs-tools";
-import { UnitFrame2μs } from '@/data/trackConfig';
 
 async function writeFile(id: string, stream?: ReadableStream<Uint8Array>) {
   if (!stream) {
@@ -43,7 +42,7 @@ class VideoDecoder {
     if (this.#thumbnailsMap.has(source.id)) {
       return this.#thumbnailsMap.get(source.id);
     }
-    const clip = await this.decode({ id: source.id });
+    const clip = await this.decode({ id: source.id, stream: source.file.stream() });
 
     if (!clip) {
       throw new Error("clip is not ready");
@@ -69,20 +68,6 @@ class VideoDecoder {
     this.#decoderMap.set(id, videoClip);
 
     return videoClip;
-  }
-  async getFrame(url: string, frameIndex: number) {
-    let clip = this.#decoderMap.get(url);
-    if (!clip) {
-      clip = await this.decode({ url })
-    }
-
-    // tick根据时间获取帧，可能存在这一时间帧为空的情况，修改为在范围内寻找帧
-    // 前几帧可能为空，所以限定最小时间为5/30秒
-    let time = Math.max(((frameIndex - 1) / baseFps * 1e6), 5 / 30 * 1e6) ;
-    let video : VideoFrame | undefined;
-    const frame = (await (clip as MP4Clip).tick(time));
-
-    return frame.video;
   }
 }
 
@@ -120,7 +105,7 @@ class ImageDecoder {
   async getFrame(type: string, url: string, frameIndex: number) {
     let frames = this.#decoderMap.get(url);
     if (!frames) {
-      await this.decode({ url, type });
+      await this.decode({ id: url, type });
       frames = this.#decoderMap.get(url);
     }
     return frames?.[frameIndex % frames.length];
@@ -154,17 +139,6 @@ class AudioDecoder {
 
     return clip;
   }
-}
-
-export const splitClip = async (source: IClip, { offsetL, offsetR, frameCount } : { offsetL: number, offsetR: number, frameCount: number }) => {
-  if (offsetL === 0 && offsetR === 0) {
-    return source
-  }
-  const start = offsetL * UnitFrame2μs
-  // 使用start裁剪视频
-  const clip = offsetL === 0 ? source : (await source.split(start))[1];
-  const end = (frameCount - offsetR - offsetL) * UnitFrame2μs;
-  return offsetR === 0 ? clip : (await clip.split(end))[0];
 }
 
 export const videoDecoder = new VideoDecoder();

@@ -118,7 +118,6 @@
 
       if (splitTime > active.start && splitTime < active.end && active.type === 'video') {
         const videoTrack = active.split(splitTime);
-        videoTrack.resize({ width: playerStore.playerWidth, height: playerStore.playerHeight });
         trackStore.addTrack(videoTrack);
       }
     }

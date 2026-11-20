@@ -43,10 +43,11 @@
 
     const audioTrack = new AudioTrack({
       id,
+      file: files[0],
       url: URL.createObjectURL(files[0]),
       name: files[0].name,
       format: files[0].type,
-      duration: Math.round(clip.meta.duration / 1e6)
+      duration: clip.meta.duration / 1e6
     }, playStore.playStartFrame);
 
     trackStore.addTrack(audioTrack);

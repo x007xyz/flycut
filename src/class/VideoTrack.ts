@@ -1,11 +1,10 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
-import { videoDecoder, splitClip } from '@/utils/webcodecs';
-import { OffscreenSprite } from '@webav/av-cliper';
-import { UnitFrame2μs } from '@/data/trackConfig';
+import { baseFps } from '@/data/trackConfig';
 
 export interface VideoSource {
   id: string,
+  file: File,
   url: string,
   name: string,
   format: string,
@@ -22,7 +21,7 @@ export class VideoTrack implements BaseTractItem {
   format: string;
   frameCount: number;
   start: number;
-  end: any;
+  end: number;
   centerX: number;
   centerY: number;
   scale: number;
@@ -30,6 +29,7 @@ export class VideoTrack implements BaseTractItem {
   width: number;
   offsetL: number;
   offsetR: number;
+  silent = false;
   get drawHeight() {
     return this.height * this.scale / 100;
   }
@@ -46,7 +46,7 @@ export class VideoTrack implements BaseTractItem {
     // 获取文件类型
     this.format = source.format;
     // 设置轨道信息
-    this.frameCount = source.duration * 30;
+    this.frameCount = Math.round(source.duration * baseFps);
     this.start = curFrame;
     this.end = this.start + this.frameCount;
 
@@ -67,22 +67,6 @@ export class VideoTrack implements BaseTractItem {
   getDrawY(height: number) {
     return height / 2 - this.drawHeight / 2 + this.centerY;
   }
-  /**
-   * 渲染需要优化
-   * TODO: 不需要没一次都去解码
-   * TODO: 优化画布渲染
-   */
-  draw(ctx: CanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
-    const frame = Math.max(frameIndex - this.start + this.offsetL, 1); // 默认展示首帧
-    const start = performance.now();
-    return videoDecoder.getFrame(this.source.id, frame).then(async vf => {
-      if (vf) {
-        console.log('渲染耗时', performance.now() - start, 'ms');
-        ctx.drawImage(vf, 0, 0, this.source.width, this.source.height, this.getDrawX(width), this.getDrawY(height), this.drawWidth, this.drawHeight);
-        vf?.close();
-      }
-    });
-  }
   resize({ width, height }: { width: number, height: number }) {
     // 视频、图片元素，在添加到画布中时，需要缩放为合适的尺寸，目标是能在画布中完整显示内容
     let scale = 1;
@@ -100,10 +84,10 @@ export class VideoTrack implements BaseTractItem {
     if (!this.audio) {
       this.audio = new Audio(this.source.url);
     }
-    if (this.audio?.paused) {
-      this.audio.currentTime = (currentFrame - this.start - this.offsetL) / 30;
-      console.log('🚀 ~ VideoTrack ~ play ~ this.audio.currentTime:', this.audio.currentTime);
-      this.audio.play();
+    this.audio.muted = this.silent;
+    if (this.audio.paused) {
+      this.audio.currentTime = (currentFrame - this.start + this.offsetL) / baseFps;
+      this.audio.play().catch(() => {});
     }
   }
   pause() {
@@ -111,30 +95,19 @@ export class VideoTrack implements BaseTractItem {
       this.audio.pause();
     }
   }
-  // 生成合成对象
-  async combine(playerSize: { width: number, height: number }, outputRatio: number) {
-    const video = await videoDecoder.decode({ id: this.source.id });
-    const clip = await splitClip(video, { offsetL: this.offsetL, offsetR: this.offsetR, frameCount: this.frameCount });
-    if (!clip) {
-      throw new Error('clip is not ready');
-    }
-    const spr = new OffscreenSprite(clip);
-    // TODO：需要支持裁剪
-    spr.time = { offset: this.start * UnitFrame2μs, duration: (this.end - this.start) * UnitFrame2μs };
-    spr.rect.x = this.getDrawX(playerSize.width) * outputRatio;
-    spr.rect.y = this.getDrawY(playerSize.height) * outputRatio;
-    spr.rect.w = this.drawWidth * outputRatio;
-    spr.rect.h = this.drawHeight * outputRatio;
-
-    return spr;
-  }
   split(cutFrame: number) {
-    this.end = cutFrame;
-    this.offsetR = this.frameCount + this.start - cutFrame; // 根据cutFrame对视频进行分割
-    // 根据cutFrame对视频进行分割
     const copy = new VideoTrack(this.source, cutFrame);
-
-    copy.offsetL = cutFrame - this.start;
+    copy.end = this.end;
+    copy.offsetL = this.offsetL + cutFrame - this.start;
+    copy.offsetR = this.offsetR;
+    copy.centerX = this.centerX;
+    copy.centerY = this.centerY;
+    copy.width = this.width;
+    copy.height = this.height;
+    copy.scale = this.scale;
+    copy.silent = this.silent;
+    this.offsetR += this.end - cutFrame;
+    this.end = cutFrame;
     return copy;
   }
 }

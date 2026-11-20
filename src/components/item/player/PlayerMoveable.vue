@@ -37,9 +37,8 @@
   import { ref, nextTick, reactive, computed, watch } from 'vue';
   import { usePlayerState } from '@/stores/playerState';
   import { useTrackState } from '@/stores/trackState';
-  import type { VideoTrack } from '@/class/VideoTrack';
-  import type { TextTrack } from '@/class/TextTrack';
-  import type { ImageTrack } from '@/class/ImageTrack';
+  import { isVisual } from '@/utils/timelineCanvas';
+  import { getPreviewFrame, isActiveAt } from '@/utils/timelineGeometry';
   const props = defineProps({
     canvasSize: {
       type: Object,
@@ -74,16 +73,12 @@
     }
 
     const layerArr: TargetItem[] = [];
+    const frame = getPreviewFrame(store.playStartFrame, trackStore.frameCount);
 
     trackStore.trackList.forEach(({ list }, lineIndex) => {
-      const index = list.findIndex((item: Record<string, any>, itemIndex) => {
-        if (store.playStartFrame >= item.start && store.playStartFrame <= item.end && item.draw) {
-          return true;
-        }
-        return false;
-      });
-      const trackItem: VideoTrack | ImageTrack | TextTrack = list[index];
-      if (trackItem) {
+      const index = list.findIndex(item => isVisual(item) && isActiveAt(item, frame));
+      const trackItem = list[index];
+      if (isVisual(trackItem)) {
         layerArr.unshift({
           lineIndex,
           itemIndex: index,
@@ -116,15 +111,19 @@
     let { target, transform, translate } = params;
     const { lineindex, itemindex } = target.dataset;
     const [x, y] = translate;
-    trackStore.trackList[lineindex].list[itemindex].centerX = x;
-    trackStore.trackList[lineindex].list[itemindex].centerY = y;
+    const track = trackStore.trackList[lineindex]?.list[itemindex];
+    if (!isVisual(track)) return;
+    track.centerX = x;
+    track.centerY = y;
     target.style.transform = transform;
   }
   function onScale(params: Record<string, any>) {
     let { target, scale, transform } = params;
     const { lineindex, itemindex } = target.dataset;
     const newScale = Math.max(Math.round(scale[0] * 100), 1);
-    trackStore.trackList[lineindex].list[itemindex].scale = newScale;
+    const track = trackStore.trackList[lineindex]?.list[itemindex];
+    if (!isVisual(track)) return;
+    track.scale = newScale;
     target.style.transform = transform;
   }
   function mousedown(event: MouseEvent, eleid: string) {

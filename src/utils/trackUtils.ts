@@ -1,7 +1,7 @@
 import { AudioTrack } from '@/class/AudioTrack';
 import type { BaseTractItem } from '@/class/Base';
 import { VideoTrack } from '@/class/VideoTrack';
-import type { TrackLineItem } from '@/stores/trackState';
+import { isActiveAt } from './timelineGeometry';
 
 /**
  * 检查 checkItem 是否与当前 trackList 存在帧重叠部分
@@ -42,12 +42,11 @@ export function isOfCanPlayType(value: unknown): value is VideoTrack | AudioTrac
     return value instanceof VideoTrack || value instanceof AudioTrack;
 }
 
-export const getCurrentTrackItemList = <T>(trackList: TrackLineItem[], currentFrame: number, isOfType: TypeGuard<T>): T[] => {
+export const getCurrentTrackItemList = <T>(trackList: { list: BaseTractItem[] }[], currentFrame: number, isOfType: TypeGuard<T>): T[] => {
     const trackItems: T[] = [];
     trackList.forEach(({ list }) => {
         list.forEach(trackItem => {
-            const { start, end } = trackItem;
-            if (start <= currentFrame && end >= currentFrame && isOfType(trackItem)) {
+            if (isActiveAt(trackItem, currentFrame) && isOfType(trackItem)) {
                 trackItems.push(trackItem);
             }
         });

@@ -1,8 +1,6 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
 import { imageDecoder } from '@/utils/webcodecs';
-import { ImgClip, OffscreenSprite } from '@webav/av-cliper';
-import { UnitFrame2μs } from '@/data/trackConfig';
 
 export interface ImageSource {
   id: string,
@@ -85,22 +83,5 @@ export class ImageTrack implements BaseTractItem {
     }
     this.width = this.source.width * scale;
     this.height = this.source.height * scale;
-  }
-  // 生成合成对象
-  async combine(playerSize: { width: number, height: number }, outputRatio: number) {
-    const frames = await imageDecoder.decode({ id: this.source.id });
-    if (!frames) {
-      throw new Error('frames is not ready');
-    }
-    const clip = new ImgClip(frames);
-    const spr = new OffscreenSprite(clip);
-    // TODO：需要支持裁剪
-    spr.time = { offset: this.start * UnitFrame2μs, duration: this.frameCount * UnitFrame2μs };
-    spr.rect.x = this.getDrawX(playerSize.width) * outputRatio;
-    spr.rect.y = this.getDrawY(playerSize.height) * outputRatio;
-    spr.rect.w = this.drawWidth * outputRatio;
-    spr.rect.h = this.drawHeight * outputRatio;
-
-    return spr;
   }
 }

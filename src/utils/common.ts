@@ -281,12 +281,3 @@ export function preciseInterval(callback: () => void, interval: number) {
         }
     };
 }
-
-export async function createFileWriter(
-    extName = 'mp4'
-): Promise<FileSystemWritableFileStream> {
-    const fileHandle = await window.showSaveFilePicker({
-        suggestedName: `WebAV-export-${Date.now()}.${extName}`
-    });
-    return fileHandle.createWritable();
-}

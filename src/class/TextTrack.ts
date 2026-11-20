@@ -1,8 +1,6 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
 import { getTextRect } from '@/utils/common';
-import { ImgClip, OffscreenSprite } from '@webav/av-cliper';
-import { UnitFrame2μs } from '@/data/trackConfig';
 
 export interface TextSource {
   content: string,
@@ -21,30 +19,30 @@ export class TextTrack implements BaseTractItem {
   stroke?: string;
   textBackgroundColor?: string;
   // 影响文本绘制的属性都使用getter/setter，在设置时，需要重新计算文本宽高
-  #fontSize = 24;
+  private textSize = 24;
   get fontSize() {
-    return this.#fontSize;
+    return this.textSize;
   }
   set fontSize(value: number) {
-    this.#fontSize = value;
+    this.textSize = value;
     // 绘制文本时，需要重新计算文本宽高
     this.calcSize();
   }
-  #fontFamily = 'Arial';
+  private textFont = 'Arial';
   get fontFamily() {
-    return this.#fontFamily;
+    return this.textFont;
   }
   set fontFamily(value: string) {
-    this.#fontFamily = value;
+    this.textFont = value;
     // 绘制文本时，需要重新计算文本宽高
     this.calcSize();
   }
-  #content = '';
+  private textContent = '';
   get content() {
-    return this.#content;
+    return this.textContent;
   }
   set content(value: string) {
-    this.#content = value;
+    this.textContent = value;
     // 绘制文本时，需要重新计算文本宽高
     this.calcSize();
   }
@@ -54,12 +52,12 @@ export class TextTrack implements BaseTractItem {
 
     this.source = source;
     // 设置文字信息
-    this.#content = source.content;
+    this.textContent = source.content;
     this.fill = source.fill;
     this.stroke = source.stroke;
     this.textBackgroundColor = source.textBackgroundColor;
-    this.#fontSize = source.fontSize;
-    this.#fontFamily = source.fontFamily;
+    this.textSize = source.fontSize;
+    this.textFont = source.fontFamily;
     this.name = source.name;
     // 对于文本意义不大
     this.format = 'text';
@@ -75,7 +73,7 @@ export class TextTrack implements BaseTractItem {
     this.calcSize();
   }
   calcSize() {
-    const { width, height } = getTextRect({ text: this.#content, fontSize: this.#fontSize, fontFamily: this.#fontFamily });
+    const { width, height } = getTextRect({ text: this.textContent, fontSize: this.textSize, fontFamily: this.textFont });
     // 计算文本宽高
     this.height = height;
     this.width = width;
@@ -98,7 +96,7 @@ export class TextTrack implements BaseTractItem {
   getDrawY(height: number) {
     return height / 2 - this.drawHeight / 2 + this.centerY;
   }
-  drawRoundRect(ctx: OffscreenCanvasRenderingContext2D, { x, y, width, height, radius, color }: { x: number, y: number, width: number, height: number, radius: number, color: string }) {
+  drawRoundRect(ctx: CanvasRenderingContext2D, { x, y, width, height, radius, color }: { x: number, y: number, width: number, height: number, radius: number, color: string }) {
     ctx.beginPath();
     ctx.fillStyle = color;
     ctx.moveTo(x + radius, y);
@@ -110,7 +108,7 @@ export class TextTrack implements BaseTractItem {
     ctx.fill();
   }
   // 渲染方法保持一致
-  draw(ctx: OffscreenCanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
+  draw(ctx: CanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
     const padding = 4;
     const radius = 4;
     const text = this.content;
@@ -126,7 +124,8 @@ export class TextTrack implements BaseTractItem {
     const lines = text.split('\n');
     const lineHeight = size * 1.2; // Adjust line height as needed
 
-    // Measure the widest line
+    ctx.textBaseline = 'top';
+    ctx.font = `${size}px ${fontFamily}`;
     const textWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
 
     const totalHeight = lines.length * lineHeight;
@@ -141,9 +140,6 @@ export class TextTrack implements BaseTractItem {
         color: backgroundColor
       });
     }
-
-    ctx.textBaseline = 'top';
-    ctx.font = `${size}px ${fontFamily}`;
 
     const startY = drawT + (totalHeight - lines.length * size) / 2; // Adjust y to center text vertically
 
@@ -168,25 +164,4 @@ export class TextTrack implements BaseTractItem {
   start: number;
   end: number;
   format: string;
-  // 生成合成对象
-  async combine(playerSize: { width: number, height: number }, outputRatio: number) {
-    const canvas = new OffscreenCanvas(this.drawWidth, this.drawHeight);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('ctx is null');
-    }
-    this.draw(ctx, { width: this.drawWidth, height: this.drawHeight }, 0);
-    const clip = new ImgClip(await createImageBitmap(canvas));
-
-    await clip.ready;
-    const spr = new OffscreenSprite(clip);
-    // TODO：需要支持裁剪
-    spr.time = { offset: this.start * UnitFrame2μs, duration: this.frameCount * UnitFrame2μs };
-    spr.rect.x = this.getDrawX(playerSize.width) * outputRatio;
-    spr.rect.y = this.getDrawY(playerSize.height) * outputRatio;
-    spr.rect.w = this.drawWidth * outputRatio;
-    spr.rect.h = this.drawHeight * outputRatio;
-
-    return spr;
-  }
 }

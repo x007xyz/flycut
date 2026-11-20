@@ -111,7 +111,6 @@
   import AttrContainer from '@/components/item/formItem/AttrContainer.vue';
   import { ref, computed } from 'vue';
   import { useTrackState } from '@/stores/trackState';
-  import { storeToRefs } from 'pinia';
   import { get, set } from 'lodash-es';
   const props = defineProps({
     componentData: {
@@ -127,18 +126,13 @@
   });
   const trackStore = useTrackState();
   const activeIndex = ref(props.componentData.defaultValue); // 内部状态
-  const { selectResource, selectTrackItem, trackList } = storeToRefs(trackStore);
   const formValue = computed({
     get() {
-      if (selectResource.value) {
-        return get(toRaw(trackList.value[selectTrackItem.value.line].list[selectTrackItem.value.index]), props.componentData.mappingKey);
-      } else {
-        return null;
-      }
+      return trackStore.selectResource ? get(trackStore.selectResource, props.componentData.mappingKey) : null;
     },
     set(value) {
-      if (selectResource.value && props.componentData.mappingKey) {
-        set(trackList.value[selectTrackItem.value.line].list[selectTrackItem.value.index], props.componentData.mappingKey, value);
+      if (trackStore.selectResource && props.componentData.mappingKey) {
+        set(trackStore.selectResource, props.componentData.mappingKey, value);
       }
     }
   });

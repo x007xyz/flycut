@@ -1,11 +1,10 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
-import { UnitFrame2μs } from '@/data/trackConfig';
-import { audioDecoder, splitClip } from '@/utils/webcodecs';
-import { OffscreenSprite } from '@webav/av-cliper';
+import { baseFps } from '@/data/trackConfig';
 
 export interface AudioSource {
   id: string,
+  file: File,
   url: string,
   name: string,
   format: string,
@@ -23,6 +22,7 @@ export class AudioTrack implements BaseTractItem {
   end: number;
   offsetL: number;
   offsetR: number;
+  silent = false;
   constructor(source: AudioSource, curFrame: number) {
     // 设置ID
     this.id = uniqueId();
@@ -34,7 +34,7 @@ export class AudioTrack implements BaseTractItem {
     this.format = source.format;
 
     // 获取音频时长，转换为frameCount
-    this.frameCount = source.duration * 30;
+    this.frameCount = Math.max(1, Math.round(source.duration * baseFps));
     this.start = curFrame;
     this.end = this.start + this.frameCount;
 
@@ -47,27 +47,15 @@ export class AudioTrack implements BaseTractItem {
     if (!this.audio) {
       this.audio = new Audio(this.source.url);
     }
-    if (this.audio?.paused) {
-      this.audio.currentTime = (currentFrame - this.start - this.offsetL) / 30;
-      this.audio.play();
+    this.audio.muted = this.silent;
+    if (this.audio.paused) {
+      this.audio.currentTime = (currentFrame - this.start + this.offsetL) / baseFps;
+      this.audio.play().catch(() => {});
     }
   }
   pause() {
     if (this.audio && !this.audio.paused) {
       this.audio.pause();
     }
-  }
-  // 生成合成对象
-  async combine() {
-    const audio = await audioDecoder.decode({ id: this.source.id });
-    const clip = await splitClip(audio, { offsetL: this.offsetL, offsetR: this.offsetR, frameCount: this.frameCount });
-    if (!clip) {
-      throw new Error('clip is not ready');
-    }
-    const spr = new OffscreenSprite(clip);
-    // TODO：需要支持裁剪
-    spr.time = { offset: this.start * UnitFrame2μs, duration: (this.end - this.start) * UnitFrame2μs };
-
-    return spr;
   }
 }

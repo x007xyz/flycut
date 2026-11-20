@@ -41,6 +41,9 @@ importers:
       lodash-es:
         specifier: ^4.17.21
         version: 4.17.21
+      mediabunny:
+        specifier: 1.50.0
+        version: 1.50.0
       opfs-tools:
         specifier: ^0.4.1
         version: 0.4.1
@@ -931,8 +934,14 @@ packages:
   '@types/chai@4.3.4':
     resolution: {integrity: sha512-KnRanxnpfpjUTqTCXslZSEdLfXExwgNxYPdiO2WGUj8+HDjFi8R3k5RVKPeSCzLjCcshCAtVO2QBbVuAV4kTnw==}
 
+  '@types/dom-mediacapture-transform@0.1.12':
+    resolution: {integrity: sha512-d7/QsLRwF864A5mgIM/YrfiglHoYn7zgCcAoJgW404r+2DwnNr7EBbLnCWpmOMgH8y0te73L1AV6H1bmauaWFw==}
+
   '@types/dom-webcodecs@0.1.11':
     resolution: {integrity: sha512-yPEZ3z7EohrmOxbk/QTAa0yonMFkNkjnVXqbGb7D4rMr+F1dGQ8ZUFxXkyLLJuiICPejZ0AZE9Rrk9wUCczx4A==}
+
+  '@types/dom-webcodecs@0.1.13':
+    resolution: {integrity: sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==}
 
   '@types/estree@1.0.0':
     resolution: {integrity: sha512-WulqXMDUTYAXCjZnk6JtIHPigp55cVtDgDrO2gHRwhyJto21+1zbVCtOYB2L1F9w4qCQ0rOGWBnBe0FNTiEJIQ==}
@@ -2311,6 +2320,9 @@ packages:
 
   mdn-data@2.0.14:
     resolution: {integrity: sha512-dn6wd0uw5GsdswPFfsgMp5NSB0/aDe6fK94YJV/AJDYXL6HVLWBsxeq7js7Ad+mU2K9LAlwpk6kN2D5mwCPVow==}
+
+  mediabunny@1.50.0:
+    resolution: {integrity: sha512-Gvgz8E1itSHf0QidCX22THlNzVi6fJTArI+uPwGs1upGOUYP4tGK5PzYbX5WZ0tpbqUOJNeBCI8YUmhxrP7b8g==}
 
   memoize-one@6.0.0:
     resolution: {integrity: sha512-rkpe71W0N0c0Xz6QD0eJETuWAJGnJ9afsl1srmwPrI+yBCkge5EycXXbYRyvL29zZVUWQCY7InPRCv3GDXuZNw==}
@@ -4527,7 +4539,13 @@ snapshots:
 
   '@types/chai@4.3.4': {}
 
+  '@types/dom-mediacapture-transform@0.1.12':
+    dependencies:
+      '@types/dom-webcodecs': 0.1.13
+
   '@types/dom-webcodecs@0.1.11': {}
+
+  '@types/dom-webcodecs@0.1.13': {}
 
   '@types/estree@1.0.0': {}
 
@@ -6183,6 +6201,11 @@ snapshots:
   material-colors@1.2.6: {}
 
   mdn-data@2.0.14: {}
+
+  mediabunny@1.50.0:
+    dependencies:
+      '@types/dom-mediacapture-transform': 0.1.12
+      '@types/dom-webcodecs': 0.1.13
 
   memoize-one@6.0.0: {}
 

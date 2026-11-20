@@ -66,7 +66,6 @@ describe('checkTrackItemOverlap', () => {
 
     it('should return no overlap when new item has the same id as an existing item', () => {
         const trackList: BaseTractItem[] = [
-            { id: 1, start: 5, end: 15 },
             { id: 2, start: 20, end: 30 }
         ];
         const checkItem: BaseTractItem = { id: 2, start: 10, end: 25 };

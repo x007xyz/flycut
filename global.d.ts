@@ -3,6 +3,7 @@ type BufferSource = ArrayBuffer | ArrayBufferView;
 interface FileSystemWritableFileStream {
   write(data: string | BufferSource | Blob): Promise<void>;
   close(): Promise<void>;
+  abort(): Promise<void>;
 }
 
 interface FileSystemFileHandle {

@@ -1,8 +1,11 @@
 import { useTrackState } from '@/stores/trackState';
+import { usePlayerState } from '@/stores/playerState';
 const store = useTrackState();
 export const initHotKey = () => {
+    const player = usePlayerState();
     // 注册全局事件
     window.onkeydown = (event: KeyboardEvent) => {
+      if (player.isExporting) return;
       // 判断按键是否在输入框中
       let activeElement = document.activeElement;
       if (activeElement && (['input', 'textarea'].includes(activeElement.tagName.toLowerCase()) || activeElement.isContentEditable)) {
