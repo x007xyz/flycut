@@ -18,7 +18,7 @@ export function useTimelineHistory(
   lines: TrackLineItem[],
   selection: { line: number, index: number },
   isDragging: () => boolean,
-  onApply: () => void = () => {},
+  beforeApply: () => void = () => {},
   limit = 50
 ) {
   const capture = () => ({ lines: cloneTimeline(lines), selection: { ...selection }});
@@ -56,6 +56,7 @@ export function useTimelineHistory(
     if (!pending.value && !applying && !isDragging()) current.selection = { ...selection };
   }, { flush: 'sync' });
   function apply(snapshot: Snapshot) {
+    beforeApply();
     applying = true;
     lines.splice(0, lines.length, ...cloneTimeline(snapshot.lines));
     const line = Math.min(snapshot.selection.line, lines.length - 1);
@@ -63,7 +64,6 @@ export function useTimelineHistory(
     Object.assign(selection, line < 0 || index < 0 ? { line: -1, index: -1 } : { line, index });
     current = capture();
     pending.value = false;
-    onApply();
     applying = false;
   }
   function undo() {

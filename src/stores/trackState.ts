@@ -37,6 +37,9 @@ export const useTrackState = defineStore('trackState', () => {
     () => moveTrackData.lineIndex !== -1 || historyDragging.value,
     () => {
       player.isPause = true;
+      trackList.forEach(({ list }) => list.forEach(track => {
+        if ('pause' in track) track.pause();
+      }));
       player.playTargetTrackMap.forEach(track => track.pause?.());
       player.playTargetTrackMap.clear();
     });

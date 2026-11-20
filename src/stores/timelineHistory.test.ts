@@ -109,4 +109,28 @@ describe('timeline history', () => {
     expect(s.lines).toHaveLength(0);
     s.scope.stop();
   });
+  it('runs playback cleanup against the old tracks before undo and redo replace them', () => {
+    const s = setup(); s.add(); s.history.flushHistory();
+    const original = s.lines[0].list[0];
+    const pause = vi.fn();
+    (original as any).audio = { pause };
+    s.apply.mockImplementation(() => {
+      s.lines.forEach(({ list }) => list.forEach(track => (track as any).audio?.pause()));
+    });
+    s.history.undo();
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(s.lines).toHaveLength(0);
+    s.history.redo();
+    const restored = s.lines[0].list[0];
+    expect(restored).not.toBe(original);
+    (restored as any).audio = { pause };
+    s.lines[0].list[0].end = 45;
+    s.history.flushHistory();
+    s.history.undo();
+    expect(pause).toHaveBeenCalledTimes(2);
+    (s.lines[0].list[0] as any).audio = { pause };
+    s.history.redo();
+    expect(pause).toHaveBeenCalledTimes(3);
+    s.scope.stop();
+  });
 });
