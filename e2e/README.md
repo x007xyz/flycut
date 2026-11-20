@@ -1,6 +1,7 @@
 # Chromium browser tests
 
-Run `pnpm install --frozen-lockfile`, `pnpm exec playwright install --with-deps chromium`, then `pnpm test:e2e`.
+Run `pnpm install --frozen-lockfile` to apply the WebAV patches, then
+`pnpm exec playwright install --with-deps chromium` and `pnpm test:e2e`.
 Playwright starts Vite on port 4008. Each test has an isolated browser context
 and OPFS. Tests live outside `src/` so Vitest does not collect them.
 
@@ -13,17 +14,12 @@ ffmpeg -f lavfi -i testsrc2=size=160x90:rate=12 \
   -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart sample.mp4
 ```
 
-Imports, decoding, preview pixels, H.264 encoding and OPFS are real. No app
-modules are mocked. The save picker is replaced with an AbortError-throwing
-browser API and a call counter, avoiding a native OS dialog. Unsupported-codec
-tests replace only the selected encoder's `isConfigSupported` with `false`.
+Imports, decoding, preview pixels, H.264/Opus encoding and OPFS are real. The
+export test redirects the save picker to an OPFS file, plays that MP4 in Chromium,
+and uses Web Audio to check for the fixture's 440 Hz tone, including after
+re-importing and re-exporting the saved file. The cancellation
+test replaces the picker with one that throws AbortError; neither test opens a
+native OS dialog. Unsupported-codec tests mock only the selected encoder's
+`isConfigSupported` result.
 The video-plus-text test also records the H.264 settings passed to the native
-capability check before stopping at the simulated AAC rejection.
-
-In the cancellation test only, if native AAC encoding is unavailable (as in
-Playwright's Linux Chromium), an AudioEncoder subclass reports support and
-delegates configure to native Opus instead of AAC. This exercises rendering,
-staging, confirmation, picker cancellation, cleanup and repeated exports with
-real encoded bytes, but **does not validate playable AAC/MP4 output**. Browsers
-with AAC support use native AAC unchanged. A native successful save and exported
-file playback are not covered. No codec support is faked in the error tests.
+capability check before stopping at the simulated Opus rejection.

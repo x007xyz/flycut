@@ -4,6 +4,14 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@webav/av-cliper@1.2.8':
+    hash: tqitq3trtcmr5uxpkai76m6lhq
+    path: patches/@webav__av-cliper@1.2.8.patch
+  '@webav/internal-utils@1.2.8':
+    hash: pyzyj4ea2o63tqgcl2z57xb5r4
+    path: patches/@webav__internal-utils@1.2.8.patch
+
 importers:
 
   .:
@@ -28,7 +36,7 @@ importers:
         version: 1.2.8
       '@webav/av-cliper':
         specifier: 1.2.8
-        version: 1.2.8
+        version: 1.2.8(patch_hash=tqitq3trtcmr5uxpkai76m6lhq)
       axios:
         specifier: ^1.3.2
         version: 1.3.2
@@ -4886,17 +4894,17 @@ snapshots:
 
   '@webav/av-canvas@1.2.8':
     dependencies:
-      '@webav/av-cliper': 1.2.8
-      '@webav/internal-utils': 1.2.8
+      '@webav/av-cliper': 1.2.8(patch_hash=tqitq3trtcmr5uxpkai76m6lhq)
+      '@webav/internal-utils': 1.2.8(patch_hash=pyzyj4ea2o63tqgcl2z57xb5r4)
 
-  '@webav/av-cliper@1.2.8':
+  '@webav/av-cliper@1.2.8(patch_hash=tqitq3trtcmr5uxpkai76m6lhq)':
     dependencies:
-      '@webav/internal-utils': 1.2.8
+      '@webav/internal-utils': 1.2.8(patch_hash=pyzyj4ea2o63tqgcl2z57xb5r4)
       '@webav/mp4box.js': 0.5.7
       opfs-tools: 0.7.5
       wave-resampler: 1.0.0
 
-  '@webav/internal-utils@1.2.8':
+  '@webav/internal-utils@1.2.8(patch_hash=pyzyj4ea2o63tqgcl2z57xb5r4)':
     dependencies:
       '@webav/mp4box.js': 0.5.7
 

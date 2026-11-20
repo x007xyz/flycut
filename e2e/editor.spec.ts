@@ -74,6 +74,7 @@ test.beforeEach(async({ page }) => {
     };
   });
   await page.goto('/');
+  await expect(page.getByRole('button', { name: '合成视频' })).toBeVisible();
 });
 
 test('empty project offers MP4 drop and has no tracks', async({ page }) => {
@@ -224,7 +225,7 @@ for (const encoder of ['VideoEncoder', 'AudioEncoder']) {
       (window as any)[encoderName].isConfigSupported = async(config: unknown) => ({ supported: false, config });
     }, encoder);
     await page.getByRole('button', { name: '合成视频' }).click();
-    await expect(page.getByText('当前浏览器不支持 MP4 所需的 H.264 或 AAC 编码，请更换浏览器后重试')).toBeVisible();
+    await expect(page.getByText('当前浏览器不支持 MP4 所需的 H.264 或 Opus 编码，请更换浏览器后重试')).toBeVisible();
     await expectIdle(page, 0);
   });
 }
@@ -250,7 +251,7 @@ test('video with a text overlay checks the MP4 output encoder settings', async({
   await expect(page.locator('.trackLine[data-type="text"]')).toHaveCount(1);
 
   await page.getByRole('button', { name: '合成视频' }).click();
-  await expect(page.getByText('当前浏览器不支持 MP4 所需的 H.264 或 AAC 编码，请更换浏览器后重试')).toBeVisible();
+  await expect(page.getByText('当前浏览器不支持 MP4 所需的 H.264 或 Opus 编码，请更换浏览器后重试')).toBeVisible();
   expect(videoConfigs).toEqual([{
     codec: 'avc1.42E032',
     width: 1080,
@@ -260,23 +261,106 @@ test('video with a text overlay checks the MP4 output encoder settings', async({
   await expectIdle(page, 0);
 });
 
-test('encoding recovers after confirm and save-picker cancellation', async({ page }) => {
-  await page.evaluate(async() => {
-    const NativeEncoder = (window as any).AudioEncoder;
-    const config = { codec: 'mp4a.40.2', sampleRate: 48000, numberOfChannels: 2 };
-    if ((await NativeEncoder.isConfigSupported(config)).supported) return;
-    // Linux Chromium lacks AAC encoding. Keep real H.264 and OPFS, but use
-    // native Opus audio for this cancellation-only test (not MP4 validity).
-    (window as any).AudioEncoder = class extends NativeEncoder {
-      static async isConfigSupported(request: Record<string, unknown>) {
-        return { supported: true, config: request };
-      }
+async function saveToOpfs(page: Page, filename: string) {
+  await page.evaluate(name => {
+    (window as any).showSaveFilePicker = async() => {
+      (window as any).savePickerCalls++;
+      const directory = await navigator.storage.getDirectory();
+      return directory.getFileHandle(name, { create: true });
+    };
+  }, filename);
+  await page.getByRole('button', { name: '合成视频' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: '保存 MP4', exact: true }).click();
+  await expect(page.getByText('合成视频成功', { exact: true })).toBeVisible();
+  await expectIdle(page, 1);
+}
 
-      configure(request: Record<string, unknown>) {
-        super.configure({ ...request, codec: 'opus' });
+async function expectPlayableAudio(page: Page, filename: string) {
+  const playback = await page.evaluate(async name => {
+    const directory = await navigator.storage.getDirectory();
+    const file = await (await directory.getFileHandle(name)).getFile();
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    const audio = new AudioContext();
+    const source = audio.createMediaElementSource(video);
+    const analyser = audio.createAnalyser();
+    source.connect(analyser).connect(audio.destination);
+    const spectrum = new Uint8Array(analyser.frequencyBinCount);
+    const toneBin = Math.round(440 * analyser.fftSize / audio.sampleRate);
+    let toneLevel = 0;
+    try {
+      video.src = url;
+      await Promise.all([audio.resume(), video.play()]);
+      await new Promise<void>(resolve => {
+        const deadline = performance.now() + 5000;
+        function sample() {
+          analyser.getByteFrequencyData(spectrum);
+          toneLevel = Math.max(toneLevel, spectrum[toneBin]);
+          if (video.ended || performance.now() >= deadline) resolve();
+          else requestAnimationFrame(sample);
+        }
+        sample();
+      });
+      return {
+        width: video.videoWidth,
+        height: video.videoHeight,
+        time: video.currentTime,
+        ended: video.ended,
+        toneLevel
+      };
+    } finally {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      URL.revokeObjectURL(url);
+      await audio.close();
+    }
+  }, filename);
+  expect(playback).toMatchObject({ width: 1080, height: 1920, ended: true });
+  expect(playback.time).toBeGreaterThan(0.4);
+  expect(playback.toneLevel).toBeGreaterThan(100);
+}
+
+test('exported MP4 plays the source audio and can be edited again', async({ page }) => {
+  await dropFile(page);
+  await expectImported(page);
+  const name = 'with-audio.mp4';
+  await saveToOpfs(page, name);
+  await expectPlayableAudio(page, name);
+
+  const bytes = await page.evaluate(async filename => {
+    const directory = await navigator.storage.getDirectory();
+    const file = await (await directory.getFileHandle(filename)).getFile();
+    return Array.from(new Uint8Array(await file.arrayBuffer()));
+  }, name);
+  await page.reload();
+  await page.getByText('视频', { exact: true }).click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByText('本地视频', { exact: true }).click();
+  await (await chooser).setFiles({ name, mimeType: 'video/mp4', buffer: Buffer.from(bytes) });
+  await expectImported(page);
+  await saveToOpfs(page, 're-export.mp4');
+  await expectPlayableAudio(page, 're-export.mp4');
+});
+
+test('missing Opus metadata aborts export without opening the save picker', async({ page }) => {
+  await page.evaluate(() => {
+    const NativeEncoder = (window as any).AudioEncoder;
+    (window as any).AudioEncoder = class extends NativeEncoder {
+      constructor({ output, error }: { output: (chunk: unknown) => void, error: (error: DOMException) => void }) {
+        super({ output: (chunk: unknown) => output(chunk), error });
       }
     };
   });
+  await dropFile(page);
+  await expectImported(page);
+  await page.getByRole('button', { name: '合成视频' }).click();
+  await expect(page.getByText('导出视频失败，请重试')).toBeVisible();
+  await expectIdle(page, 0);
+});
+
+test('encoding recovers after confirm and save-picker cancellation', async({ page }) => {
   await dropFile(page);
   await expectImported(page);
   const exportButton = page.getByRole('button', { name: '合成视频' });
