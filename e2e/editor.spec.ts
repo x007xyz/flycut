@@ -65,7 +65,7 @@ async function expectIdle(page: Page, pickerCalls: number) {
   expect(await page.evaluate(() => (window as any).savePickerCalls)).toBe(pickerCalls);
 }
 
-test.beforeEach(async({ page }) => {
+async function openEditor(page: Page) {
   await page.addInitScript(() => {
     (window as any).savePickerCalls = 0;
     (window as any).showSaveFilePicker = async() => {
@@ -75,7 +75,9 @@ test.beforeEach(async({ page }) => {
   });
   await page.goto('/');
   await expect(page.getByRole('button', { name: '合成视频' })).toBeVisible();
-});
+}
+
+test.beforeEach(async({ page }) => openEditor(page));
 
 test('empty project offers MP4 drop and has no tracks', async({ page }) => {
   await expect(page.getByText('将 MP4 视频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
@@ -322,7 +324,7 @@ async function expectPlayableAudio(page: Page, filename: string) {
   expect(playback.toneLevel).toBeGreaterThan(100);
 }
 
-test('exported MP4 plays the source audio and can be edited again', async({ page }) => {
+test('exported MP4 plays the source audio and can be edited again', async({ page, browser, baseURL }) => {
   await dropFile(page);
   await expectImported(page);
   const name = 'with-audio.mp4';
@@ -334,14 +336,19 @@ test('exported MP4 plays the source audio and can be edited again', async({ page
     const file = await (await directory.getFileHandle(filename)).getFile();
     return Array.from(new Uint8Array(await file.arrayBuffer()));
   }, name);
-  await page.reload();
-  await page.getByText('视频', { exact: true }).click();
-  const chooser = page.waitForEvent('filechooser');
-  await page.getByText('本地视频', { exact: true }).click();
-  await (await chooser).setFiles({ name, mimeType: 'video/mp4', buffer: Buffer.from(bytes) });
-  await expectImported(page);
-  await saveToOpfs(page, 're-export.mp4');
-  await expectPlayableAudio(page, 're-export.mp4');
+  const reopened = await browser.newPage({ baseURL });
+  try {
+    await openEditor(reopened);
+    await reopened.getByText('视频', { exact: true }).click();
+    const chooser = reopened.waitForEvent('filechooser');
+    await reopened.getByText('本地视频', { exact: true }).click();
+    await (await chooser).setFiles({ name, mimeType: 'video/mp4', buffer: Buffer.from(bytes) });
+    await expectImported(reopened);
+    await saveToOpfs(reopened, 're-export.mp4');
+    await expectPlayableAudio(reopened, 're-export.mp4');
+  } finally {
+    await reopened.close();
+  }
 });
 
 test('missing Opus metadata aborts export without opening the save picker', async({ page }) => {
