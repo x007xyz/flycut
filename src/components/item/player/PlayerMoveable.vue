@@ -102,7 +102,6 @@
         });
       }
     });
-    moveable.value && moveable.value.updateRect();
     return layerArr;
   });
   const draggableOptions = reactive({
@@ -125,15 +124,25 @@
     target.style.transform = transform;
   }
   let transforming = false;
-  function startTransform() {
-    trackStore.flushHistory();
-    transforming = true;
-    trackStore.historyDragging = true;
-  }
   function endTransform() {
     if (!transforming) return;
     transforming = false;
     trackStore.historyDragging = false;
+    document.removeEventListener('mouseup', endTransform);
+    document.removeEventListener('pointerup', endTransform);
+    document.removeEventListener('pointercancel', endTransform);
+    document.removeEventListener('touchend', endTransform);
+    window.removeEventListener('blur', endTransform);
+  }
+  function startTransform() {
+    trackStore.flushHistory();
+    transforming = true;
+    trackStore.historyDragging = true;
+    document.addEventListener('mouseup', endTransform);
+    document.addEventListener('pointerup', endTransform);
+    document.addEventListener('pointercancel', endTransform);
+    document.addEventListener('touchend', endTransform);
+    window.addEventListener('blur', endTransform);
   }
   onBeforeUnmount(endTransform);
   function onScale(params: Record<string, any>) {
@@ -152,7 +161,8 @@
       moveable.value.dragStart(event);
     });
   }
-  watch([trackStore.selectTrackItem, targetList], () => {
+  watch(moveTarget, endTransform);
+  watch([trackStore.selectTrackItem, targetList], async() => {
     if (moveContainer.value && trackStore.selectTrackItem.line !== -1 && trackStore.selectTrackItem.index !== -1) {
       const targetTrack = trackStore.trackList[trackStore.selectTrackItem.line].list[trackStore.selectTrackItem.index];
       if (targetTrack && targetList.value.find(item => item.id === targetTrack.id)) {
@@ -163,6 +173,9 @@
     } else {
       moveTarget.value = null;
     }
+    if (!moveTarget.value) endTransform();
+    await nextTick();
+    moveable.value?.updateRect();
   }, { immediate: true, flush: 'post' });
 </script>
 
