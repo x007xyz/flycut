@@ -21,30 +21,30 @@ export class TextTrack implements BaseTractItem {
   stroke?: string;
   textBackgroundColor?: string;
   // 影响文本绘制的属性都使用getter/setter，在设置时，需要重新计算文本宽高
-  #fontSize = 24;
+  private _fontSize = 24;
   get fontSize() {
-    return this.#fontSize;
+    return this._fontSize;
   }
   set fontSize(value: number) {
-    this.#fontSize = value;
+    this._fontSize = value;
     // 绘制文本时，需要重新计算文本宽高
     this.calcSize();
   }
-  #fontFamily = 'Arial';
+  private _fontFamily = 'Arial';
   get fontFamily() {
-    return this.#fontFamily;
+    return this._fontFamily;
   }
   set fontFamily(value: string) {
-    this.#fontFamily = value;
+    this._fontFamily = value;
     // 绘制文本时，需要重新计算文本宽高
     this.calcSize();
   }
-  #content = '';
+  private _content = '';
   get content() {
-    return this.#content;
+    return this._content;
   }
   set content(value: string) {
-    this.#content = value;
+    this._content = value;
     // 绘制文本时，需要重新计算文本宽高
     this.calcSize();
   }
@@ -54,12 +54,12 @@ export class TextTrack implements BaseTractItem {
 
     this.source = source;
     // 设置文字信息
-    this.#content = source.content;
+    this._content = source.content;
     this.fill = source.fill;
     this.stroke = source.stroke;
     this.textBackgroundColor = source.textBackgroundColor;
-    this.#fontSize = source.fontSize;
-    this.#fontFamily = source.fontFamily;
+    this._fontSize = source.fontSize;
+    this._fontFamily = source.fontFamily;
     this.name = source.name;
     // 对于文本意义不大
     this.format = 'text';
@@ -75,7 +75,7 @@ export class TextTrack implements BaseTractItem {
     this.calcSize();
   }
   calcSize() {
-    const { width, height } = getTextRect({ text: this.#content, fontSize: this.#fontSize, fontFamily: this.#fontFamily });
+    const { width, height } = getTextRect({ text: this._content, fontSize: this._fontSize, fontFamily: this._fontFamily });
     // 计算文本宽高
     this.height = height;
     this.width = width;
