@@ -2,8 +2,7 @@
   <div class="flex flex-col rounded overflow-hidden h-full" ref="el">
       <div class="flex items-center text-xs pl-2 overflow-hidden h-5 leading-5 bg-gray-500 bg-opacity-40 text-gray-200">
         <VideoIcon class="inline-block mr-2 shrink-0" />
-        <span class="mr-4 shrink-0">{{ `${trackItem.name}.${trackItem.format}` }}</span>
-        <span class="mr-4 shrink-0">{{ trackItem.time }}</span>
+        <span class="mr-4 shrink-0">{{ trackItem.name }}</span>
       </div>
       <div ref="container" class="overflow-hidden bg-gray-400 bg-opacity-70 flex-1 relative whitespace-nowrap" :style="waveStyle">
         <img
@@ -21,26 +20,19 @@ draggable="false"
 <script setup lang="ts">
   import Loading from '@/components/Loading.vue';
   import type { PropType } from 'vue';
-  import type { VideoTractItem } from '@/stores/trackState';
+  import type { VideoTrack } from '@/class/VideoTrack';
   import { usePlayerState } from '@/stores/playerState';
   import trackCheckPlaying from './trackCheckPlaying';
-  import { computed, inject, ref, watch } from 'vue';
-  import { videoDecoder } from '@/utils/webcodecs';
-  import { baseFps } from '@/data/trackConfig';
+  import { computed, ref, watch } from 'vue';
+  import { readVideoThumbnails } from '@/utils/timelineVideo';
   import { useResizeObserver } from '@vueuse/core';
   const props = defineProps({
     trackItem: {
-      type: Object as PropType<VideoTractItem>,
-      default() {
-        return {
-          showWidth: '0px',
-          showLeft: '0px'
-        };
-      }
+      type: Object as PropType<VideoTrack>,
+      required: true
     }
   });
   const store = usePlayerState();
-  store.ingLoadingCount++;
   const container = ref();
   const loading = ref(true);
   // const waveFileUrl = ref('');
@@ -57,30 +49,6 @@ draggable="false"
     };
   });
   const imgs = ref<string[]>([]);
-  async function initVideo() {
-    const { name, source, format, frameCount, width, height } = props.trackItem;
-
-    const start = performance.now();
-    /**
-     * 缩略图可以优化：
-     * TODO：可视区域渲染
-     */
-    const thumbnails = await videoDecoder.thumbnails(source);
-
-    console.log(`生成${thumbnails.length}张缩略图耗时`, performance.now() - start, 'ms');
-
-    imgs.value = thumbnails.map(({ img }) => {
-      return URL.createObjectURL(img);
-    });
-
-    console.log('缩略图连接耗时', performance.now() - start, 'ms');
-    /**
-     * TODO: 视频声音波形图
-     */
-
-    loading.value = false;
-    store.ingLoadingCount--;
-  }
 
   const el = ref();
 
@@ -92,7 +60,7 @@ draggable="false"
     containerWidth.value = width;
   });
 
-  function getUniformSubarray(array, m) {
+  function getUniformSubarray(array: string[], m: number) {
     // 计算采样间隔
     const interval = array.length / m;
 
@@ -108,28 +76,34 @@ draggable="false"
 
   const thumbnails = computed(() => {
     if (imgs.value.length === 0) return [];
-    const { start, end, offsetL, offsetR, frameCount } = props.trackItem;
+    const { start, end, frameCount } = props.trackItem;
     const showFrameCount = end - start;
     return getUniformSubarray(imgs.value, Math.ceil(containerWidth.value * frameCount / showFrameCount / 50));
   });
 
-  // watch(() => thumbnails, val => {
-  //   console.log('🚀 ~ watch ~ thumbnails:', thumbnails, val);
-  // });
-
-  watch(() => {
-    return props.trackItem.source;
-  }, initVideo, {
-    immediate: true,
-    flush: 'post'
-  });
-  trackCheckPlaying(props);
-
-  onUnmounted(() => {
-    imgs.value.forEach(item => {
-      URL.revokeObjectURL(item);
+  watch(() => props.trackItem.source.file, async(file, _previous, onCleanup) => {
+    let active = true;
+    loading.value = true;
+    store.ingLoadingCount++;
+    onCleanup(() => {
+      if (loading.value) store.ingLoadingCount--;
+      active = false;
+      imgs.value.forEach(url => URL.revokeObjectURL(url));
+      imgs.value = [];
     });
-  });
+    try {
+      const blobs = await readVideoThumbnails(file);
+      if (active) imgs.value = blobs.map(blob => URL.createObjectURL(blob));
+    } catch (error) {
+      if (active) console.warn('无法生成缩略图', error);
+    } finally {
+      if (active) {
+        loading.value = false;
+        store.ingLoadingCount--;
+      }
+    }
+  }, { immediate: true });
+  trackCheckPlaying(props);
 </script>
 
 <style scope>

@@ -9,9 +9,16 @@ import { openMedia } from './timelineVideo';
 export const audioSampleRate = 48000;
 export const samplesPerFrame = audioSampleRate / baseFps;
 
+export async function isBigEndianWave(file: Blob) {
+  const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  return String.fromCharCode(...header.slice(0, 4)) === 'RIFX'
+    && String.fromCharCode(...header.slice(8, 12)) === 'WAVE';
+}
+
 /* eslint-disable no-await-in-loop -- keep a bounded number of decoded packets in memory */
 export function createAudioMixer() {
   const inputs = new Map<File, Input>();
+  const iterators = new Set<AsyncGenerator<WrappedAudioBuffer, void, unknown>>();
   const clips: ((startSample: number, mix: AudioBuffer) => Promise<void>)[] = [];
 
   return {
@@ -20,6 +27,10 @@ export function createAudioMixer() {
       const file = track.source.file;
       let input = inputs.get(file);
       if (!input) {
+        // Mediabunny currently treats RIFX PCM samples as little-endian.
+        if (track instanceof AudioTrack && await isBigEndianWave(file)) {
+          throw new Error(`无法导出音频：${track.name} 使用大端 WAV。请转成普通 WAV 或将该片段静音后重试。`);
+        }
         input = openMedia(file);
         inputs.set(file, input);
       }
@@ -32,6 +43,7 @@ export function createAudioMixer() {
       const clipStart = Math.round(track.start * samplesPerFrame);
       const clipEnd = Math.round(track.end * samplesPerFrame);
       const packets = new AudioBufferSink(audio).buffers(sourceStart, sourceStart + (track.end - track.start) / baseFps);
+      iterators.add(packets);
       const state = { packet: null as WrappedAudioBuffer | null, ended: false };
       clips.push(async(startSample, mix) => {
         const from = Math.max(clipStart, startSample);
@@ -80,9 +92,15 @@ export function createAudioMixer() {
       }
       return audio;
     },
-    dispose() {
-      for (const input of inputs.values()) input.dispose();
-      inputs.clear();
+    async dispose() {
+      try {
+        await Promise.allSettled([...iterators].map(packets => packets.return()));
+      } finally {
+        iterators.clear();
+        clips.length = 0;
+        for (const input of inputs.values()) input.dispose();
+        inputs.clear();
+      }
     }
   };
 }

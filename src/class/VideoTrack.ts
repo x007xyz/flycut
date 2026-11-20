@@ -79,22 +79,6 @@ export class VideoTrack implements BaseTractItem {
     this.width = this.source.width * scale;
     this.height = this.source.height * scale;
   }
-  audio: HTMLAudioElement | null = null;
-  play(currentFrame: number) {
-    if (!this.audio) {
-      this.audio = new Audio(this.source.url);
-    }
-    this.audio.muted = this.silent;
-    if (this.audio.paused) {
-      this.audio.currentTime = (currentFrame - this.start + this.offsetL) / baseFps;
-      this.audio.play().catch(() => {});
-    }
-  }
-  pause() {
-    if (this.audio && !this.audio.paused) {
-      this.audio.pause();
-    }
-  }
   split(cutFrame: number) {
     const copy = new VideoTrack(this.source, cutFrame);
     copy.end = this.end;

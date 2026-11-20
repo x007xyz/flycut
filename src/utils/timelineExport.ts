@@ -70,10 +70,10 @@ export async function exportTimeline(
     if (!target.buffer?.byteLength) throw new Error('未生成可保存的视频文件');
     return { blob: new Blob([target.buffer], { type: container.mimeType }), extension: format.extension };
   } finally {
-    video.dispose();
-    mixer.dispose();
-    if (output && output.state !== 'finalized') {
-      await output.cancel().catch(error => console.warn('释放导出资源失败', error));
-    }
+    await Promise.all([
+      video.dispose(),
+      mixer.dispose(),
+      output && output.state !== 'finalized' ? output.cancel().catch(error => console.warn('释放导出资源失败', error)) : undefined
+    ]);
   }
 }

@@ -2,8 +2,9 @@
 
 import type { VideoSource } from "@/class/VideoTrack";
 import { baseFps } from "@/data/trackConfig";
-import { MP4Clip, decodeImg, AudioClip } from "@webav/av-cliper";
+import { decodeImg, AudioClip } from "@webav/av-cliper";
 import { file, write } from "opfs-tools";
+import { animationIndex } from './timelineGeometry';
 
 async function writeFile(id: string, stream?: ReadableStream<Uint8Array>) {
   if (!stream) {
@@ -30,54 +31,13 @@ async function writeFile(id: string, stream?: ReadableStream<Uint8Array>) {
   return stream;
 }
 
-class VideoDecoder {
-  #decoderMap = new Map<string, MP4Clip>();
-
-  #thumbnailsMap = new Map<string, {
-      img: Blob;
-      ts: number;
-  }[]>();
-
-  async thumbnails(source: VideoSource) {
-    if (this.#thumbnailsMap.has(source.id)) {
-      return this.#thumbnailsMap.get(source.id);
-    }
-    const clip = await this.decode({ id: source.id, stream: source.file.stream() });
-
-    if (!clip) {
-      throw new Error("clip is not ready");
-    }
-    const thumbnails = await clip.thumbnails(50, { step: 1e6 });
-
-    this.#thumbnailsMap.set(source.id, thumbnails);
-
-    return thumbnails;
-  }
-
-  async decode({ id, stream, type }: { id: string, stream?: ReadableStream<Uint8Array>, type?: string }) {
-    if (this.#decoderMap.has(id)) {
-      return this.#decoderMap.get(id);
-    }
-
-    stream = await writeFile(id, stream);
-
-    const videoClip = new MP4Clip(stream);
-
-    await videoClip.ready;
-
-    this.#decoderMap.set(id, videoClip);
-
-    return videoClip;
-  }
-}
-
 class ImageDecoder {
-  #decoderMap = new Map<string, VideoFrame[]>();
+  #decoderMap = new Map<string, { frames: VideoFrame[]; frameEnds: number[] }>();
   async decode({ id, stream, type }: { id: string, stream?: ReadableStream<Uint8Array>, type?: string }) {
     console.log("🚀 ~ ImageDecoder ~ decode ~ id:", id)
 
     if (this.#decoderMap.has(id)) {
-      return this.#decoderMap.get(id);
+      return this.#decoderMap.get(id)?.frames;
     }
 
     stream = await writeFile(id, stream);
@@ -98,17 +58,20 @@ class ImageDecoder {
     );
 
     // 存储解析后的帧
-    this.#decoderMap.set(id, frames);
+    let end = 0;
+    const frameEnds = frames.map((frame, index) => {
+      const timestampDelta = index + 1 < frames.length ? frames[index + 1].timestamp - frame.timestamp : 0;
+      const duration = frame.duration || timestampDelta || 100_000;
+      end += duration;
+      return end;
+    });
+    this.#decoderMap.set(id, { frames, frameEnds });
 
     return frames;
   }
-  async getFrame(type: string, url: string, frameIndex: number) {
-    let frames = this.#decoderMap.get(url);
-    if (!frames) {
-      await this.decode({ id: url, type });
-      frames = this.#decoderMap.get(url);
-    }
-    return frames?.[frameIndex % frames.length];
+  getFrame(id: string, elapsedUs: number) {
+    const image = this.#decoderMap.get(id);
+    return image?.frames[animationIndex(image.frameEnds, elapsedUs)];
   }
 }
 
@@ -140,8 +103,6 @@ class AudioDecoder {
     return clip;
   }
 }
-
-export const videoDecoder = new VideoDecoder();
 
 export const imageDecoder = new ImageDecoder();
 

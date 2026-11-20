@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { VideoTrack } from '../../class/VideoTrack';
 import { chooseExportFormat } from '../exportFormat';
-import { fitOutputSize, getPreviewFrame, getTimelineLayers, isActiveAt } from '../timelineGeometry';
+import { animationIndex, fitOutputSize, getPreviewFrame, getTimelineLayers, getTrackRect, isActiveAt } from '../timelineGeometry';
 
 describe('timeline canvas', () => {
   it('preserves source orientation and fits even dimensions within the export limit', () => {
@@ -32,6 +32,13 @@ describe('timeline canvas', () => {
     expect([right.start, right.end, right.offsetL, right.offsetR]).toEqual([50, 75, 45, 50]);
     expect([last.start, last.end, last.offsetL, last.offsetR]).toEqual([75, 100, 70, 25]);
     expect([last.centerX, last.scale, last.silent]).toEqual([5, 80, true]);
+    expect(getTrackRect(last, { width: 640, height: 360 })).toEqual({ x: 69, y: 36, width: 512, height: 288 });
+  });
+
+  it('holds animated image frames for their own durations and loops at the end', () => {
+    const ends = [100_000, 350_000, 400_000];
+    expect([0, 99_999, 100_000, 349_999, 350_000, 400_000, 750_000].map(time => animationIndex(ends, time)))
+      .toEqual([0, 0, 1, 1, 2, 0, 2]);
   });
 });
 

@@ -108,7 +108,7 @@ export class TextTrack implements BaseTractItem {
     ctx.fill();
   }
   // 渲染方法保持一致
-  draw(ctx: CanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
+  draw(ctx: CanvasRenderingContext2D, { width, height }: { width: number, height: number }) {
     const padding = 4;
     const radius = 4;
     const text = this.content;
@@ -155,8 +155,6 @@ export class TextTrack implements BaseTractItem {
       ctx.fillStyle = color;
       ctx.fillText(line, drawL, y);
     });
-
-    return Promise.resolve();
   }
   id: string;
   name: string;

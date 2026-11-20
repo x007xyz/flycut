@@ -1,6 +1,9 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
 import { imageDecoder } from '@/utils/webcodecs';
+import { baseFps } from '@/data/trackConfig';
+import { getTrackRect } from '@/utils/timelineGeometry';
+import type { CanvasSize } from '@/utils/timelineGeometry';
 
 export interface ImageSource {
   id: string,
@@ -64,13 +67,12 @@ export class ImageTrack implements BaseTractItem {
   getDrawY(height: number) {
     return height / 2 - this.drawHeight / 2 + this.centerY;
   }
-  draw(ctx: CanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
-    const frame = Math.max(frameIndex - this.start, 0); // 默认展示首帧
-    return imageDecoder.getFrame(this.source.format, this.source.id, frame).then(vf => {
-        if (vf) {
-          ctx.drawImage(vf, 0, 0, this.source.width, this.source.height, this.getDrawX(width), this.getDrawY(height), this.drawWidth, this.drawHeight);
-        }
-    });
+  getFrame(frame: number) {
+    return imageDecoder.getFrame(this.source.id, Math.round(Math.max(frame - this.start, 0) * 1e6 / baseFps));
+  }
+  draw(ctx: CanvasRenderingContext2D, size: CanvasSize, frame: NonNullable<ReturnType<typeof imageDecoder.getFrame>>) {
+    const { x, y, width, height } = getTrackRect(this, size);
+    ctx.drawImage(frame, x, y, width, height);
   }
   resize({ width, height }: { width: number, height: number }) {
     // 视频、图片元素，在添加到画布中时，需要缩放为合适的尺寸，目标是能在画布中完整显示内容

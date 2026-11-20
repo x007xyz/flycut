@@ -15,13 +15,12 @@
 <script setup lang="ts">
   import { VideoPlay, VideoPause } from '@element-plus/icons-vue';
   import { computed, onBeforeUnmount, watch } from 'vue';
-  import { formatPlayerTime, preciseInterval } from '@/utils/common';
+  import { formatPlayerTime } from '@/utils/common';
   import { usePlayerState } from '@/stores/playerState';
   import { useTrackState } from '@/stores/trackState';
-  import { getCurrentTrackItemList, isOfCanPlayType } from '@/utils/trackUtils';
+  import { getCurrentTrackItemList } from '@/utils/trackUtils';
   import { baseFps } from '@/data/trackConfig';
-  import type { VideoTrack } from '@/class/VideoTrack';
-  import type { AudioTrack } from '@/class/AudioTrack';
+  import { AudioTrack } from '@/class/AudioTrack';
   const props = defineProps({
     disable: {
       type: Boolean,
@@ -36,11 +35,13 @@
   const allTime = computed(() => {
     return formatPlayerTime(trackStore.frameCount);
   });
-  let playTimer: ReturnType<typeof preciseInterval> | undefined;
-  let playing = new Set<VideoTrack | AudioTrack>();
+  let animation = 0;
+  let playing = new Set<AudioTrack>();
 
   function syncAudio() {
-    const active = store.isPause ? [] : getCurrentTrackItemList(trackStore.trackList, store.playStartFrame, isOfCanPlayType);
+    const active = store.isPause ? [] : getCurrentTrackItemList(
+      trackStore.trackList, store.playStartFrame, (track): track is AudioTrack => track instanceof AudioTrack
+    );
     const next = new Set(active);
     playing.forEach(clip => { if (!next.has(clip)) clip.pause(); });
     next.forEach(clip => clip.play(store.playStartFrame));
@@ -49,7 +50,7 @@
 
   const pauseVideo = () => {
     store.isPause = true;
-    playTimer?.cancel();
+    cancelAnimationFrame(animation);
     syncAudio();
   };
   function startPlay() {
@@ -59,13 +60,17 @@
     }
     store.isPause = false;
     syncAudio();
-    playTimer?.cancel();
-    playTimer = preciseInterval(() => {
-      store.playStartFrame++;
-      if (store.playStartFrame >= trackStore.frameCount) {
-        pauseVideo();
-      }
-    }, 1000 / baseFps);
+    cancelAnimationFrame(animation);
+    const startFrame = store.playStartFrame;
+    const startTime = performance.now();
+    function tick(now: number) {
+      if (store.isPause) return;
+      const frame = startFrame + Math.floor((now - startTime) * baseFps / 1000);
+      store.playStartFrame = Math.min(trackStore.frameCount, Math.max(startFrame, frame));
+      if (store.playStartFrame >= trackStore.frameCount) pauseVideo();
+      else animation = requestAnimationFrame(tick);
+    }
+    animation = requestAnimationFrame(tick);
   }
   // 在一些操作时，需要暂停播放
   watch(() => store.isPause, () => {

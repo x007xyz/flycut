@@ -1,7 +1,26 @@
 <template>
   <div ref="viewport" class="absolute top-12 bottom-10 left-2 right-2 overflow-hidden">
-    <canvas ref="playerCanvas" class="absolute left-0 right-0 top-0 bottom-0 m-auto bg-gray-900" id="player" :style="{ zoom: scale, width: `${playerWidth}px`, height: `${playerHeight}px` }" />
-    <PlayerMoveable :style="{ zoom: scale, width: `${playerWidth}px`, height: `${playerHeight}px` }" />
+    <div class="absolute inset-0 m-auto overflow-hidden bg-black isolate pointer-events-none" :style="stageStyle">
+      <template v-for="(layer, index) in layers" :key="index">
+        <PlayerVideo
+          v-if="layer.type === 'video' && layer.track"
+          :key="layer.track.id"
+          :track="layer.track"
+          :size="size"
+          :frame="frame"
+          :paused="store.isPause"
+          @presented="setPresentedTime"
+        />
+        <PlayerGraphics
+          v-else-if="layer.type === 'graphics'"
+          :lines="layer.lines"
+          :size="size"
+          :frame="layer.frame"
+          :scale="scale"
+        />
+      </template>
+    </div>
+    <PlayerMoveable :style="stageStyle" />
   </div>
   <PlayerControl />
 </template>
@@ -9,92 +28,58 @@
 <script setup lang="ts">
   import PlayerMoveable from '@/components/item/player/PlayerMoveable.vue';
   import PlayerControl from '@/components/item/player/PlayerControl.vue';
-  import { ref, computed, onMounted, onBeforeUnmount, toRaw, watch } from 'vue';
-  import { ElMessage } from 'element-plus';
+  import PlayerVideo from '@/components/item/player/PlayerVideo.vue';
+  import PlayerGraphics from '@/components/item/player/PlayerGraphics.vue';
+  import { computed, reactive, ref } from 'vue';
+  import { useElementSize } from '@vueuse/core';
   import { usePlayerState } from '@/stores/playerState';
   import { useTrackState } from '@/stores/trackState';
-  import { drawTimelineFrame } from '@/utils/timelineCanvas';
-  import { getPreviewFrame } from '@/utils/timelineGeometry';
-  import { createVideoReader } from '@/utils/timelineVideo';
+  import { getPreviewFrame, isActiveAt } from '@/utils/timelineGeometry';
+  import { timelineFrameAt } from '@/utils/previewVideo';
   import type { TrackLineItem } from '@/class/Track';
-  import { storeToRefs } from 'pinia';
+  import { VideoTrack } from '@/class/VideoTrack';
 
   const store = usePlayerState();
   const tracks = useTrackState();
-  const playerCanvas = ref<HTMLCanvasElement>();
   const viewport = ref<HTMLDivElement>();
-  const viewportSize = ref({ width: 0, height: 0 });
-  const { playerWidth, playerHeight } = storeToRefs(store);
+  const viewportSize = useElementSize(viewport);
+  const size = computed(() => ({ width: store.playerWidth, height: store.playerHeight }));
   const scale = computed(() => Math.min(
-    viewportSize.value.width / playerWidth.value, viewportSize.value.height / playerHeight.value
+    viewportSize.width.value / size.value.width, viewportSize.height.value / size.value.height
   ));
-  const video = createVideoReader();
-
-  const observer = new ResizeObserver(([entry]) => {
-    const { width, height } = entry.contentRect;
-    viewportSize.value = { width, height };
-  });
-  let buffer: HTMLCanvasElement;
-  let scheduled = 0;
-  let pending = false;
-  let drawing = false;
-  let disposed = false;
-  let hasPreviewError = false;
-
-  async function draw() {
-    scheduled = 0;
-    const canvas = playerCanvas.value;
-    const ctx = buffer?.getContext('2d', { alpha: false });
-    const target = canvas?.getContext('2d', { alpha: false });
-    if (!canvas || !ctx || !target || !scale.value) return;
-
-    drawing = true;
-    pending = false;
-    const size = { width: playerWidth.value, height: playerHeight.value };
-    const resolution = scale.value * (window.devicePixelRatio || 1);
-    const width = Math.max(1, Math.round(size.width * resolution));
-    const height = Math.max(1, Math.round(size.height * resolution));
-    if (buffer.width !== width) buffer.width = width;
-    if (buffer.height !== height) buffer.height = height;
-    try {
-      video.retain(new Set(tracks.trackList.flatMap(line => line.list.map(track => track.id))));
-      const frame = getPreviewFrame(store.playStartFrame, tracks.frameCount);
-      await drawTimelineFrame(ctx, toRaw(tracks.trackList) as TrackLineItem[], size, frame, video.read);
-      if (!disposed) {
-        if (canvas.width !== width) canvas.width = width;
-        if (canvas.height !== height) canvas.height = height;
-        target.drawImage(buffer, 0, 0);
-        hasPreviewError = false;
+  const stageStyle = computed(() => ({
+    zoom: scale.value, width: `${size.value.width}px`, height: `${size.value.height}px`
+  }));
+  const frame = computed(() => getPreviewFrame(store.playStartFrame, tracks.frameCount));
+  const presented = reactive(new Map<string, number>());
+  const rows = computed(() => {
+    const groups: ({ type: 'video'; line: TrackLineItem } | { type: 'graphics'; lines: TrackLineItem[] })[] = [];
+    for (const line of (tracks.trackList as TrackLineItem[]).slice().reverse()) {
+      if (line.type === 'video') {
+        groups.push({ type: 'video', line });
+      } else if (line.type !== 'audio') {
+        const last = groups[groups.length - 1];
+        if (last?.type === 'graphics') last.lines.unshift(line);
+        else groups.push({ type: 'graphics', lines: [line] });
       }
-    } catch (error) {
-      if (!disposed && !hasPreviewError) {
-        hasPreviewError = true;
-        ElMessage.error(error instanceof Error ? error.message : '无法渲染预览');
-      }
-    } finally {
-      drawing = false;
-      if (pending && !disposed) scheduled = requestAnimationFrame(draw);
     }
-  }
-
-  function scheduleDraw() {
-    pending = true;
-    if (!disposed && !drawing && !scheduled) scheduled = requestAnimationFrame(draw);
-  }
-
-  watch([() => tracks.trackList, () => store.playStartFrame, playerWidth, playerHeight, scale],
-        scheduleDraw, { deep: true, flush: 'post' });
-  onMounted(() => {
-    buffer = document.createElement('canvas');
-    if (viewport.value) observer.observe(viewport.value);
-    window.addEventListener('resize', scheduleDraw);
-    scheduleDraw();
+    return groups;
   });
-  onBeforeUnmount(() => {
-    disposed = true;
-    observer.disconnect();
-    cancelAnimationFrame(scheduled);
-    window.removeEventListener('resize', scheduleDraw);
-    video.dispose();
+  const layers = computed(() => {
+    let graphicsFrame = frame.value;
+    return rows.value.map(group => {
+      if (group.type === 'graphics') return { ...group, frame: graphicsFrame };
+      const track = group.line.list.find((item): item is VideoTrack => item instanceof VideoTrack && isActiveAt(item, frame.value));
+      if (track) {
+        const time = presented.get(track.id);
+        graphicsFrame = time === undefined ? frame.value : timelineFrameAt(track, time);
+      }
+      return { type: group.type, track };
+    });
   });
+
+  function setPresentedTime(id: string, time: number | null) {
+    if (time === null) presented.delete(id);
+    else presented.set(id, time);
+  }
 </script>
