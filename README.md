@@ -4,7 +4,7 @@
 A web-based editing tool implemented with Webcodecs + Vue3 <br/>
 If you find it useful, please 🌟 Star 🌟 to support it 🫣 <br/>
 
-[Open the FlyCut editor](https://flycut.co)
+Website: [flycut.co](https://flycut.co)
 
 ## Features
 ![](coverImage/map.png)

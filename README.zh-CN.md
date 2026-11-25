@@ -4,7 +4,7 @@
 基于Webcodecs + Vue3实现的Web端剪辑工具 <br/>
 如果有用请 🌟 Star 🌟 支持一下哟 🫣 <br/>
 
-[打开 FlyCut 编辑器](https://flycut.co)
+网站：[flycut.co](https://flycut.co)
 
 ## 功能
 ![](coverImage/map.png)
