@@ -194,6 +194,8 @@ const handlers: Record<string, (args: Args) => unknown> = {
   },
   update_clip({ clipId, start, duration, x, y, scale, muted, content, fontSize, fill, stroke }) {
     const { track, line } = findClip(clipId);
+    // 先提交上一步的修改，每个命令单独一条撤销记录
+    useTrackState().flushHistory();
     const isText = track instanceof TextTrack;
     if ((content ?? fontSize ?? fill ?? stroke) !== undefined && !isText) throw new Error('content, fontSize, fill and stroke apply to text clips');
     if (muted !== undefined && track.type !== 'video' && track.type !== 'audio') throw new Error('muted applies to video and audio clips');
@@ -235,6 +237,7 @@ const handlers: Record<string, (args: Args) => unknown> = {
     const left = typeof trimStart === 'number' ? frames(trimStart) : track.offsetL;
     const right = typeof trimEnd === 'number' ? frames(trimEnd) : track.offsetR;
     if (left + right >= track.frameCount) throw new Error(`Trim leaves nothing of the ${seconds(track.frameCount)}s source`);
+    useTrackState().flushHistory();
     const previous = { offsetL: track.offsetL, offsetR: track.offsetR, end: track.end };
     Object.assign(track, { offsetL: left, offsetR: right, end: track.start + track.frameCount - left - right });
     try {

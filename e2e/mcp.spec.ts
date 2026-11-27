@@ -65,6 +65,11 @@ test('the local MCP server edits the project open in the browser', async({ page 
     expect(trimmed.end).toBeCloseTo(video.end - 0.1, 2);
     await expect(call('trim_clip', { clipId: tail.id, trimStart: video.end })).rejects.toThrow('Trim leaves nothing');
 
+    // 连续两次修改各自一条撤销记录
+    await call('update_clip', { clipId: text.id, x: 20 });
+    await call('update_clip', { clipId: text.id, x: 30 });
+    expect((await call('undo')).clips.find(({ id }: { id: string }) => id === text.id)).toMatchObject({ x: 20 });
+
     await call('delete_clips', { clipIds: [text.id] });
     await expect(page.locator('.tk-track-clip[data-type="text"]')).toHaveCount(0);
     const restored = await call('undo');
