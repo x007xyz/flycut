@@ -19,3 +19,19 @@ FlyCut automatically saves the latest timeline and its imported media in this br
 - https://github.com/Cc-Edit/CcClip A web-based editing tool implemented with Vue3 + ffmpeg, the main functionality of this project is based on this project
 ## License
 [AGPL-3.0](LICENSE). Code derived from CcClip keeps its Apache-2.0 notice in [NOTICE](NOTICE).
+
+## AI access (MCP)
+
+Editing commands (read the timeline, import assets, add/update/trim/split/delete clips, undo, export) are defined once in `src/commands/tools.json` and shared by every non-UI caller.
+
+**Local MCP server** (Claude Desktop, Cursor, ...):
+
+1. Add to your MCP client config:
+   ```json
+   { "mcpServers": { "flycut": { "command": "node", "args": ["/path/to/flycut/mcp/index.mjs"] } } }
+   ```
+2. Open FlyCut in the browser, click "AI" in the header and turn on "本地 MCP 服务". The editor connects to `ws://127.0.0.1:4010`.
+
+Only pages listed in `FLYCUT_ALLOWED_ORIGINS` (default `http://localhost:4008,http://127.0.0.1:4008`) may connect; change the port with `FLYCUT_MCP_PORT`. The local server adds an `import_file` tool that imports a file by absolute path.
+
+**WebMCP**: when the browser exposes `document.modelContext` (W3C WebMCP draft), the same commands are registered as page tools; they can be turned off in the "AI" menu.

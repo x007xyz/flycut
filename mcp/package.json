@@ -1,0 +1,14 @@
+{
+  "name": "@flycut/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "Local MCP server that lets AI clients edit the FlyCut project open in the browser",
+  "type": "module",
+  "bin": { "flycut-mcp": "./index.mjs" },
+  "engines": { "node": ">=20.10" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "ws": "8.18.3"
+  }
+}
