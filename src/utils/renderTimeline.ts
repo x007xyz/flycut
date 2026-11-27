@@ -13,7 +13,7 @@ import type { ImageTrack } from '@/class/ImageTrack';
 import type { TextTrack } from '@/class/TextTrack';
 import { VideoTrack } from '@/class/VideoTrack';
 import { baseFps } from '@/data/trackConfig';
-import { audioDecoder, videoDecoder } from './webcodecs';
+import { audioDecoder, videoDecoder, type MediaAsset } from './webcodecs';
 
 export type Track = AudioTrack | ImageTrack | TextTrack | VideoTrack;
 type Size = { width: number, height: number };
@@ -82,8 +82,8 @@ function paintBackground(ctx: OffscreenCanvasRenderingContext2D, width: number, 
   ctx.fillRect(0, 0, width, height);
 }
 
-async function *videoTimes(track: VideoTrack) {
-  for (let frame = track.start; frame < track.end; frame++) yield track.sourceTime(frame);
+async function *videoTimes(track: VideoTrack, asset: MediaAsset) {
+  for (let frame = track.start; frame < track.end; frame++) yield asset.sampleTime(track.sourceTime(frame));
 }
 
 export async function renderTimeline(tracks: Track[], playerSize: Size, writable: WritableStream<StreamTargetChunk>) {
@@ -115,7 +115,7 @@ export async function renderTimeline(tracks: Track[], playerSize: Size, writable
       let iterator = samples.get(track);
       if (!iterator) {
         const asset = await videoDecoder.decode({ id: track.source.id });
-        iterator = asset.videoSink.samplesAtTimestamps(videoTimes(track));
+        iterator = asset.videoSink.samplesAtTimestamps(videoTimes(track, asset));
         samples.set(track, iterator);
       }
       const { value: sample } = await iterator.next();
