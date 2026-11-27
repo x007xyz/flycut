@@ -39,18 +39,16 @@ function drawMedia(ctx: Context, source: Drawable, { x, y, width, height }: Rect
   else ctx.drawImage(source, x, y, width, height);
 }
 
+export function drawLayer(ctx: Context, layer: Layer, image: Drawable | null) {
+  if (layer.kind === 'text') drawText(ctx, layer.x, layer.y, layer.style);
+  else if (image) drawMedia(ctx, image, layer.rect);
+}
+
 export function drawFrame(ctx: Context, scene: Scene, { images }: Pick<FrameSources, 'images'>, { scale = 1 } = {}) {
   ctx.save();
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.fillStyle = scene.background;
   ctx.fillRect(0, 0, scene.width, scene.height);
-  scene.layers.forEach((layer, index) => {
-    if (layer.kind === 'text') {
-      drawText(ctx, layer.x, layer.y, layer.style);
-      return;
-    }
-    const image = images[index];
-    if (image) drawMedia(ctx, image, layer.rect);
-  });
+  scene.layers.forEach((layer, index) => drawLayer(ctx, layer, images[index]));
   ctx.restore();
 }
