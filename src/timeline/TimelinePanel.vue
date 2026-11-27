@@ -68,7 +68,7 @@
   const onBeforeCommand: BeforeCommandHook = command => {
     const run = delegated[command.type];
     if (!run) return undefined;
-    run(command);
+    run(command as TimelineCommand<{ clipIds?: string[] }>);
     return false;
   };
 
