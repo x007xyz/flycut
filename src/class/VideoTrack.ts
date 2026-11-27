@@ -1,6 +1,5 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
-import { videoDecoder } from '@/utils/webcodecs';
 import { baseFps } from '@/data/trackConfig';
 
 export interface VideoSource {
@@ -69,16 +68,6 @@ export class VideoTrack implements BaseTractItem {
   // 片段内某一帧对应的素材时间，单位为秒
   sourceTime(frameIndex: number) {
     return Math.max(frameIndex - this.start + this.offsetL, 0) / baseFps;
-  }
-  draw(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
-    return videoDecoder.getFrame(this.source.id, this.sourceTime(frameIndex)).then(sample => {
-      if (!sample) return;
-      try {
-        sample.draw(ctx, this.getDrawX(width), this.getDrawY(height), this.drawWidth, this.drawHeight);
-      } finally {
-        sample.close();
-      }
-    });
   }
   resize({ width, height }: { width: number, height: number }) {
     // 视频、图片元素，在添加到画布中时，需要缩放为合适的尺寸，目标是能在画布中完整显示内容

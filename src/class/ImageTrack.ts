@@ -1,7 +1,5 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
-import { imageDecoder } from '@/utils/webcodecs';
-import { baseFps } from '@/data/trackConfig';
 
 export interface ImageSource {
   id: string,
@@ -64,12 +62,6 @@ export class ImageTrack implements BaseTractItem {
   }
   getDrawY(height: number) {
     return height / 2 - this.drawHeight / 2 + this.centerY;
-  }
-  draw(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
-    const time = Math.max(frameIndex - this.start, 0) / baseFps;
-    return imageDecoder.getFrame(this.source.id, time, this.source.format).then(image => {
-      ctx.drawImage(image, this.getDrawX(width), this.getDrawY(height), this.drawWidth, this.drawHeight);
-    });
   }
   resize({ width, height }: { width: number, height: number }) {
     // 视频、图片元素，在添加到画布中时，需要缩放为合适的尺寸，目标是能在画布中完整显示内容

@@ -1,10 +1,14 @@
 import { usePlayerState } from '@/stores/playerState';
 import { useTrackState } from '@/stores/trackState';
+import { buildScene, frameKey, type Track } from '@/render/scene';
+import { drawFrame, loadFrameSources } from '@/render/drawFrame';
 import { watch, reactive } from 'vue';
 import type { Ref } from 'vue';
+
+// 预览与导出共用 buildScene + drawFrame，预览直接绘制到 Canvas 2D
 export class CanvasPlayer {
     player: Ref<HTMLCanvasElement>; // 播放器
-    playerContext: ImageBitmapRenderingContext | null = null;
+    playerContext: CanvasRenderingContext2D | null = null;
     playerStore: Record<string, any>;
     trackState: Record<string, any>;
     containerSize: Record<string, any>;
@@ -12,12 +16,14 @@ export class CanvasPlayer {
         width: 0,
         height: 0
     });
+    #renderId = 0;
+    #paintedKey = '';
     constructor(options: Record<string, any>) {
         this.player = options.player;
         this.containerSize = options.containerSize;
 
         onMounted(() => {
-            this.playerContext = this.player.value.getContext('bitmaprenderer');
+            this.playerContext = this.player.value.getContext('2d');
             this.drawCanvas();
         });
 
@@ -26,10 +32,6 @@ export class CanvasPlayer {
         this.initWatch();
     }
     initWatch() {
-        // 容器大小变化
-        // watch([this.containerSize], () => {
-        //     this.updateCanvasSize();
-        // });
         // 属性变化后重新渲染
         watch([
             () => this.trackState.trackList,
@@ -38,67 +40,33 @@ export class CanvasPlayer {
             () => this.playerStore.ingLoadingCount
         ], () => this.drawCanvas(), { deep: true, flush: 'post' });
     }
-    // getCanvasRect() {
-    //     let { width, height } = this.containerSize;
-    //     height -= 96; // 上下功能栏
-    //     width -= 16; // 左右功能栏
-    //     const { playerWidth, playerHeight } = this.playerStore;
-    //     const scaleWidth = playerWidth !== 0 ? Math.floor(height / playerHeight * playerWidth) : width; // 等高情况下的宽度
-    //     const scaleHeight = playerHeight !== 0 ? Math.floor(width / playerWidth * playerHeight) : height; // 等宽情况啊下的高度
-    //     const canvasWidth = Math.min(scaleWidth, width);
-    //     const canvasHeight = Math.min(scaleHeight, height);
-
-    //     return { canvasWidth, canvasHeight };
-    // }
-    // 更新尺寸
-    // updateCanvasSize() {
-    //     /**
-    //      * 希望实际尺寸为正常手机的尺寸，1920*1080，较大尺寸
-    //      * 但是在画布上展示时，不需要这么大尺寸，会对渲染性能有影响
-    //      * 所以画布尺寸还是按照实际展示尺寸来计算，最终生成时，再使用1920*1080
-    //      */
-    //     const { canvasWidth, canvasHeight } = this.getCanvasRect();
-    //     if (this.canvasSize.width !== canvasWidth || this.canvasSize.height !== canvasHeight) {
-    //         this.canvasSize.width = canvasWidth;
-    //         this.canvasSize.height = canvasHeight;
-    //         // 设置实际画布尺寸
-    //         this.player.value.width = canvasWidth;
-    //         this.player.value.height = canvasHeight;
-
-    //         // 将画板宽高存储到playerState中
-    //         this.playerStore.canvasOptions = { width: canvasWidth, height: canvasHeight };
-    //     }
-    // }
     // 绘制
     async drawCanvas() {
-        if (this.playerStore.ingLoadingCount !== 0) return;
-        const offCanvas = new OffscreenCanvas(this.playerStore.playerWidth, this.playerStore.playerHeight);
-        const ctx = offCanvas.getContext('2d');
-        const videoList: Array<any> = [];
-        this.trackState.trackList.forEach(({ list }) => {
-            const trackItem = list.find((item: Record<string, any>) => {
-                if (this.playerStore.playStartFrame >= item.start && this.playerStore.playStartFrame <= item.end && !['audio'].includes(item.type)) {
-                    return true;
-                }
-                return false;
-            });
+        const ctx = this.playerContext;
+        if (this.playerStore.ingLoadingCount !== 0 || !ctx) return;
+        const size = { width: this.playerStore.playerWidth, height: this.playerStore.playerHeight };
+        const tracks: Track[] = this.trackState.trackList.flatMap(({ list }: { list: Track[] }) => list.map(track => toRaw(track)));
+        const scene = buildScene(tracks, this.playerStore.playStartFrame, size, { includeEnd: true });
+        const scale = window.devicePixelRatio || 1;
+        const canvas = ctx.canvas;
+        const width = Math.round(size.width * scale);
+        const height = Math.round(size.height * scale);
+        const key = `${width}x${height}:${frameKey(scene)}`;
+        if (key === this.#paintedKey) return;
 
-            trackItem && videoList.unshift(() => this.drawToRenderCanvas(ctx, trackItem, this.playerStore.playStartFrame));
-        });
-        await videoList.reduce((chain, nextPromise) => chain.then(() => nextPromise()), Promise.resolve()); // 顺序绘制，保证视频在底部
-        this.drawToPlayerCanvas(offCanvas);
-    }
-    // 预渲染canvas先加载
-    drawToRenderCanvas(ctx: OffscreenCanvasRenderingContext2D, trackItem: Record<string, any>, frameIndex: number) {
-        return toRaw(trackItem).draw(ctx, { width: this.playerStore.playerWidth, height: this.playerStore.playerHeight }, frameIndex)
-            .then(() => {
-                return true;
-            });
-    }
-    // 将预渲染好的canvas进行渲播放器渲染
-    async drawToPlayerCanvas(canvas: OffscreenCanvas) {
-        if (this.playerContext) {
-            this.playerContext.transferFromImageBitmap(canvas.transferToImageBitmap());
+        const renderId = ++this.#renderId;
+        const sources = await loadFrameSources(scene);
+        try {
+            // 较新的绘制请求已经开始，丢弃过期帧
+            if (renderId !== this.#renderId) return;
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+            }
+            drawFrame(ctx, scene, sources, { scale });
+            this.#paintedKey = key;
+        } finally {
+            sources.release();
         }
     }
 }

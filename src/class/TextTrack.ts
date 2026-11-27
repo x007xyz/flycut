@@ -1,6 +1,7 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
 import { getTextRect } from '@/utils/common';
+import { drawText } from '@/render/text';
 
 export interface TextSource {
   content: string,
@@ -96,68 +97,16 @@ export class TextTrack implements BaseTractItem {
   getDrawY(height: number) {
     return height / 2 - this.drawHeight / 2 + this.centerY;
   }
-  drawRoundRect(ctx: OffscreenCanvasRenderingContext2D, { x, y, width, height, radius, color }: { x: number, y: number, width: number, height: number, radius: number, color: string }) {
-    ctx.beginPath();
-    ctx.fillStyle = color;
-    ctx.moveTo(x + radius, y);
-    ctx.arcTo(x + width, y, x + width, y + height, radius);
-    ctx.arcTo(x + width, y + height, x, y + height, radius);
-    ctx.arcTo(x, y + height, x, y, radius);
-    ctx.arcTo(x, y, x + width, y, radius);
-    ctx.closePath();
-    ctx.fill();
-  }
   // 渲染方法保持一致
-  draw(ctx: OffscreenCanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
-    const padding = 4;
-    const radius = 4;
-    const text = this.content;
-    const drawL = this.getDrawX(width);
-    const drawT = this.getDrawY(height);
-    const size = this.fontSize * this.scale / 100;
-    const color = this.fill;
-    const fontFamily = this.fontFamily;
-    const strokeColor = this.stroke;
-    const strokeWidth = 4;
-    const backgroundColor = this.textBackgroundColor;
-
-    const lines = text.split('\n');
-    const lineHeight = size * 1.2; // Adjust line height as needed
-
-    // Measure the widest line
-    const textWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
-
-    const totalHeight = lines.length * lineHeight;
-
-    if (backgroundColor) {
-      this.drawRoundRect(ctx, {
-        x: drawL - padding,
-        y: drawT - padding,
-        width: textWidth + padding * 2,
-        height: totalHeight + padding * 2,
-        radius,
-        color: backgroundColor
-      });
-    }
-
-    ctx.textBaseline = 'top';
-    ctx.font = `${size}px ${fontFamily}`;
-
-    const startY = drawT + (totalHeight - lines.length * size) / 2; // Adjust y to center text vertically
-
-    lines.forEach((line, index) => {
-      const y = startY + index * lineHeight;
-
-      if (strokeColor && strokeWidth) {
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = strokeWidth;
-        ctx.strokeText(line, drawL, y);
-      }
-
-      ctx.fillStyle = color;
-      ctx.fillText(line, drawL, y);
+  draw(ctx: OffscreenCanvasRenderingContext2D, { width, height }: { width: number, height: number }, _frameIndex?: number) {
+    drawText(ctx, this.getDrawX(width), this.getDrawY(height), {
+      content: this.content,
+      fontSize: this.fontSize * this.scale / 100,
+      fontFamily: this.fontFamily,
+      fill: this.fill,
+      stroke: this.stroke,
+      background: this.textBackgroundColor
     });
-
     return Promise.resolve();
   }
   id: string;
