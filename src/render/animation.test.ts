@@ -60,4 +60,11 @@ describe('packAnimations', () => {
     expect(validAnimations({ in: { preset: 'explode', duration: 1, ease: '' }})).toBe(false);
     expect(validAnimations({ in: { preset: 'fade', duration: 0, ease: '' }})).toBe(false);
   });
+
+  it('keeps the loop pose while the exit plays', () => {
+    const value = { loop: { preset: 'spin', duration: 4, ease: '' }, out: { preset: 'fade', duration: 1, ease: 'linear' }};
+    const motion = motionAt(value, 3.5, 4);
+    expect(motion?.rotate).toBeCloseTo(315);
+    expect(motion?.opacity).toBeCloseTo(0.5);
+  });
 });

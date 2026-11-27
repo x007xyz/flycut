@@ -191,6 +191,26 @@ function seek(steps: Step[], time: number) {
   return state;
 }
 
+function combine(base: Motion, extra: Motion): Motion {
+  return {
+    x: base.x + extra.x,
+    y: base.y + extra.y,
+    scale: base.scale * extra.scale,
+    rotate: base.rotate + extra.rotate,
+    opacity: base.opacity * extra.opacity,
+    blur: base.blur + extra.blur,
+    reveal: Math.min(base.reveal, extra.reveal)
+  };
+}
+
+function clamp(state: Motion): Motion {
+  state.opacity = Math.min(1, Math.max(0, state.opacity));
+  state.reveal = Math.min(1, Math.max(0, state.reveal));
+  state.scale = Math.max(0, state.scale);
+  state.blur = Math.max(0, state.blur);
+  return state;
+}
+
 /** 片段内 time 秒处的动画状态；total 为片段时长；没有动画时返回 null */
 export function motionAt(animations: Partial<ClipAnimations> | undefined, time: number, total: number): Motion | null {
   const enter = active(animations?.in, 'in');
@@ -205,12 +225,11 @@ export function motionAt(animations: Partial<ClipAnimations> | undefined, time: 
   outDuration *= fit;
   const outStart = total - outDuration;
   const t = Math.min(Math.max(time, 0), total);
-  let state = { ...rest };
   if (enter && t < inDuration) {
-    state = seek([{ from: offsets[enter.preset], to: {}, duration: inDuration, ease: enter.ease || (enter.preset === 'pop' ? 'outBack' : 'outCubic') }], t);
-  } else if (exit && t >= outStart) {
-    state = seek([{ from: {}, to: offsets[exit.preset], duration: outDuration, ease: exit.ease || (exit.preset === 'pop' ? 'inBack' : 'inCubic') }], t - outStart);
-  } else if (loop) {
+    return clamp(seek([{ from: offsets[enter.preset], to: {}, duration: inDuration, ease: enter.ease || (enter.preset === 'pop' ? 'outBack' : 'outCubic') }], t));
+  }
+  let state = { ...rest };
+  if (loop) {
     const local = (t - inDuration) % loop.duration;
     const peak = peaks[loop.preset];
     state = loop.preset === 'spin'
@@ -220,9 +239,9 @@ export function motionAt(animations: Partial<ClipAnimations> | undefined, time: 
         { from: peak, to: {}, duration: loop.duration / 2, ease: loop.ease || 'inOutSine' }
       ], local);
   }
-  state.opacity = Math.min(1, Math.max(0, state.opacity));
-  state.reveal = Math.min(1, Math.max(0, state.reveal));
-  state.scale = Math.max(0, state.scale);
-  state.blur = Math.max(0, state.blur);
-  return state;
+  // 出场叠加在循环之上，避免出场开始时循环姿态跳回静止
+  if (exit && t >= outStart) {
+    state = combine(state, seek([{ from: {}, to: offsets[exit.preset], duration: outDuration, ease: exit.ease || (exit.preset === 'pop' ? 'inBack' : 'inCubic') }], t - outStart));
+  }
+  return clamp(state);
 }
