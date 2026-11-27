@@ -67,6 +67,14 @@ function baseSegment(materialId: string, track: Track, speedId: string, renderIn
   };
 }
 
+/** 片段时长不超过素材剩余时长：帧数取整后可能比素材略长 */
+function timing(track: Track, sourceStart: number, sourceDuration?: number) {
+  const start = us(track.start);
+  let duration = us(track.end) - start;
+  if (sourceDuration !== undefined) duration = Math.max(0, Math.min(duration, Math.round(sourceDuration * 1e6) - us(sourceStart)));
+  return { target_timerange: { start, duration }, source_timerange: { start: us(sourceStart), duration }};
+}
+
 /** flycut 以画布中心为原点、向下为正；剪映以半个画布为单位、向上为正 */
 function clip(track: VideoTrack | ImageTrack | TextTrack, scale: number, player: Size) {
   return {
@@ -162,7 +170,7 @@ export async function buildJianyingDraft(lines: { list: Track[] }[], { name, dra
         segments.push({
           // eslint-disable-next-line no-await-in-loop -- 素材按顺序写入 zip
           ...baseSegment(await mediaMaterial(track), track, speedId, renderIndex),
-          source_timerange: { start: us(track.offsetL), duration: us(track.end) - us(track.start) },
+          ...timing(track, track.offsetL, track.source.duration),
           volume: track.silent ? 0 : 1, clip: null, hdr_settings: null
         });
       } else if (track instanceof VideoTrack || track instanceof ImageTrack) {
@@ -171,7 +179,7 @@ export async function buildJianyingDraft(lines: { list: Track[] }[], { name, dra
         segments.push({
           // eslint-disable-next-line no-await-in-loop -- 素材按顺序写入 zip
           ...baseSegment(await mediaMaterial(track), track, speedId, renderIndex),
-          source_timerange: track instanceof VideoTrack ? { start: us(track.offsetL), duration: us(track.end) - us(track.start) } : { start: 0, duration: us(track.end) - us(track.start) },
+          ...(track instanceof VideoTrack ? timing(track, track.offsetL, track.source.duration) : timing(track, 0)),
           volume: track instanceof VideoTrack && !track.silent ? 1 : 0,
           clip: clip(track, track.drawWidth / fit, player),
           uniform_scale: { on: true, value: 1 },
