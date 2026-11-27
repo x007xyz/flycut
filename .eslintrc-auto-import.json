@@ -1,6 +1,7 @@
 {
   "globals": {
     "EffectScope": "readonly",
+    "ElMessage": "readonly",
     "computed": "readonly",
     "createApp": "readonly",
     "customRef": "readonly",

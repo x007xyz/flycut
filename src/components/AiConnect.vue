@@ -31,16 +31,18 @@
   const dotClass = computed(() => ({
     'bg-green-500': bridgeStatus.value === 'connected' || webMcpActive.value,
     'bg-yellow-500': bridgeStatus.value === 'connecting' && !webMcpActive.value,
-    'bg-gray-400': bridgeStatus.value === 'off' && !webMcpActive.value
+    'bg-gray-400': (bridgeStatus.value === 'off' || bridgeStatus.value === 'replaced') && !webMcpActive.value
   }));
   const bridgeText = computed(() => ({
     off: `运行 node mcp/index.mjs 后打开，AI 客户端即可编辑当前工程（端口 ${bridgePort}）`,
     connecting: `正在连接 ws://127.0.0.1:${bridgePort}，请确认本地 MCP 服务已启动`,
-    connected: '已连接本地 MCP 服务'
+    connected: '已连接本地 MCP 服务',
+    replaced: '另一个标签页已连接本地 MCP 服务，重新打开开关可切回本页'
   }[bridgeStatus.value]));
 
   function onBridge(value: string | number | boolean) {
     bridgeOn.value = Boolean(value);
+    if (bridgeOn.value && bridgeStatus.value === 'replaced') setBridgeEnabled(false);
     setBridgeEnabled(bridgeOn.value);
   }
 

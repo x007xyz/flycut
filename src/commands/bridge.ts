@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { runCommand } from './index';
 
-export type BridgeStatus = 'off' | 'connecting' | 'connected';
+export type BridgeStatus = 'off' | 'connecting' | 'connected' | 'replaced';
 
 const enabledKey = 'flycut.mcpBridge';
 const portKey = 'flycut.mcpPort';
@@ -39,9 +39,14 @@ function connect() {
       ws.send(JSON.stringify({ id: request.id, error: error instanceof Error ? error.message : String(error) }));
     }
   };
-  ws.onclose = () => {
+  ws.onclose = ({ code }) => {
     if (socket !== ws) return;
     socket = null;
+    // 4000：另一个标签页接管了连接，本页不再重连，避免两个标签页互相抢占
+    if (code === 4000) {
+      bridgeStatus.value = 'replaced';
+      return;
+    }
     // 本地服务未启动或被关闭时，定时重连
     if (bridgeEnabled()) {
       bridgeStatus.value = 'connecting';
