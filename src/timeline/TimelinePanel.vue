@@ -20,6 +20,7 @@
       :mediaProvider="mediaProvider"
       :onBeforeCommand="onBeforeCommand"
       history="external"
+      :shortcuts="false"
       @documentchange="onDocumentChange"
       @update:currentFrame="onFrameChange"
       @update:trackScale="(scale: number) => store.trackScale = scale"
