@@ -241,7 +241,7 @@ export function motionAt(animations: Partial<ClipAnimations> | undefined, time: 
   }
   // 出场叠加在循环之上，避免出场开始时循环姿态跳回静止
   if (exit && t >= outStart) {
-    state = combine(state, seek([{ from: {}, to: offsets[exit.preset], duration: outDuration, ease: exit.ease || (exit.preset === 'pop' ? 'inBack' : 'inCubic') }], t - outStart));
+    state = combine(clamp(state), seek([{ from: {}, to: offsets[exit.preset], duration: outDuration, ease: exit.ease || (exit.preset === 'pop' ? 'inBack' : 'inCubic') }], t - outStart));
   }
   return clamp(state);
 }
