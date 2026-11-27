@@ -762,6 +762,13 @@ test('projects can be created and switched, and cleanup keeps assets used by any
   await expect(page.locator(videoClip)).toHaveCount(1);
   await removeClip(page, videoClip);
   await expect(page.locator(videoClip)).toHaveCount(0);
+  await expect.poll(async() => JSON.parse(await readDraft(page) ?? '{}').assets?.length).toBe(0);
+  // 撤销记录仍引用素材，不能清理
+  await openResources(page);
+  await page.getByText('清理未使用素材').click();
+  await expect(page.getByText('没有未使用的素材')).toBeVisible();
+
+  await page.reload();
   await openResources(page);
   await page.getByText('清理未使用素材').click();
   await page.getByRole('button', { name: '删除' }).click();
