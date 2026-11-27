@@ -2,8 +2,10 @@
   <div
       id="player"
       ref="moveContainer"
-      class="absolute left-0 right-0 top-0 bottom-0 m-auto overflow-hidden bg-black"
+      class="absolute left-0 right-0 top-0 bottom-0 m-auto bg-black"
   >
+    <!-- 只裁剪画面，Moveable 控制框在裁剪层之外，元素超出画布时仍可缩放 -->
+    <div class="absolute inset-0 overflow-hidden">
     <div
         v-for="(item, index) in targetList"
         :key="item.id"
@@ -33,6 +35,7 @@
             height: `${item.h + item.pad * 2}px`
           }"
       />
+    </div>
     </div>
     <Moveable
         ref="moveable"
@@ -70,8 +73,10 @@
   const moveContainer = ref();
   const moveable = ref();
   const moveTarget = ref();
-  // 文字描边和背景超出文字框的部分
-  const textBleed = textPadding + 2;
+  // 文字描边、背景和超出行高的字形（如越南语声调符号）可能超出文字框
+  function bleedOf(layer: Layer) {
+    return layer.kind === 'text' ? textPadding + 2 + layer.style.fontSize * 0.5 : 0;
+  }
   interface TargetItem {
     id: string;
     kind: Layer['kind'];
@@ -120,7 +125,7 @@
         y: track.centerY,
         w: track.width,
         h: track.height,
-        pad: layer.kind === 'text' ? textBleed / scale : 0,
+        pad: bleedOf(layer) / scale,
         left: store.playerWidth / 2 - track.width / 2,
         top: store.playerHeight / 2 - track.height / 2
       }];
@@ -149,7 +154,7 @@
         const track = trackIndex.value.get(layer.clipId)?.track;
         const ctx = canvas?.getContext('2d');
         if (!canvas || !track || !ctx) return;
-        const bleed = layer.kind === 'text' ? textBleed : 0;
+        const bleed = bleedOf(layer);
         const x = (layer.kind === 'text' ? layer.x : layer.rect.x) - bleed;
         const y = (layer.kind === 'text' ? layer.y : layer.rect.y) - bleed;
         const width = Math.max(1, Math.round((track.drawWidth + bleed * 2) * ratio));
