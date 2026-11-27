@@ -21,6 +21,7 @@
             <ElDropdownItem command="create">新建工程</ElDropdownItem>
             <ElDropdownItem command="import">导入工程（.flycut）</ElDropdownItem>
             <ElDropdownItem command="export">导出工程（.flycut）</ElDropdownItem>
+            <ElDropdownItem command="jianying">导出剪映草稿</ElDropdownItem>
             <ElDropdownItem command="remove">删除当前工程</ElDropdownItem>
             <ElDropdownItem
               v-for="(item, index) in otherProjects"
@@ -62,7 +63,8 @@
   import { usePageState } from '@/stores/pageState';
   import { useTrackState } from '@/stores/trackState';
   import { usePlayerState } from '@/stores/playerState';
-  import { isExportSupported, renderTimeline, type Track } from '@/utils/renderTimeline';
+  import { exportOptions, isExportSupported, renderTimeline, type Track } from '@/utils/renderTimeline';
+  import { buildJianyingDraft, safeName } from '@/jianying';
   import { createFileWriter } from '@/utils/common';
   import { saveRenderedVideo } from '@/utils/videoExport';
   import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
@@ -98,6 +100,32 @@
     download(await packProject(name, json, assetIdsOf(lines)), `${name}.flycut`);
   }
 
+  const jianyingRootKey = 'flycut.jianyingRoot';
+
+  async function exportJianying() {
+    const { value } = await ElMessageBox.prompt(
+      '填写剪映的草稿位置（剪映“全局设置 → 草稿位置”），解压到这个目录后素材会自动链接。留空则导入剪映后需要手动重新链接素材。',
+      '导出剪映草稿',
+      {
+        inputValue: localStorage.getItem(jianyingRootKey) ?? '',
+        inputPlaceholder: 'C:/Users/用户名/AppData/Local/JianyingPro/User Data/Projects/com.lveditor.draft',
+        confirmButtonText: '导出',
+        cancelButtonText: '取消'
+      }
+    );
+    const draftRoot = value?.trim() ?? '';
+    localStorage.setItem(jianyingRootKey, draftRoot);
+    const name = project.current?.name ?? '工程';
+    const lines = toRaw(trackState.trackList).map(line => ({ list: toRaw(line.list).map(track => toRaw(track)) }));
+    const blob = await buildJianyingDraft(lines, {
+      name,
+      draftRoot,
+      player: { width: playerState.playerWidth, height: playerState.playerHeight },
+      canvas: { width: exportOptions.width, height: exportOptions.height }
+    });
+    download(blob, `${safeName(name)}.zip`);
+  }
+
   async function importProject() {
     const [file] = await selectFile({ accept: '.flycut', multiple: false }).catch(() => []);
     if (!file) return;
@@ -119,6 +147,7 @@
       } else if (command === 'create') await project.create();
       else if (command === 'import') await importProject();
       else if (command === 'export') await exportProject();
+      else if (command === 'jianying') await exportJianying();
       else if (command === 'remove') {
         await ElMessageBox.confirm(`删除工程“${project.current?.name}”？素材会保留在素材库中。`, '删除工程', { confirmButtonText: '删除', cancelButtonText: '取消' });
         await project.removeCurrent();
