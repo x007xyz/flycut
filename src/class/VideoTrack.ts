@@ -103,6 +103,7 @@ export class VideoTrack implements BaseTractItem {
     copy.end = this.end;
     copy.offsetL = this.offsetL + cutFrame - this.start;
     copy.offsetR = this.offsetR;
+    copy.silent = this.silent;
 
     this.offsetR += this.end - cutFrame;
     this.end = cutFrame;
