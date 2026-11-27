@@ -57,7 +57,7 @@ function baseSegment(materialId: string, track: Track, speedId: string, renderIn
     visible: true,
     id: uuid(),
     material_id: materialId,
-    target_timerange: { start: us(track.start), duration: us(track.end - track.start) },
+    target_timerange: { start: us(track.start), duration: us(track.end) - us(track.start) },
     common_keyframes: [],
     keyframe_refs: [],
     speed: 1,
@@ -162,7 +162,7 @@ export async function buildJianyingDraft(lines: { list: Track[] }[], { name, dra
         segments.push({
           // eslint-disable-next-line no-await-in-loop -- 素材按顺序写入 zip
           ...baseSegment(await mediaMaterial(track), track, speedId, renderIndex),
-          source_timerange: { start: us(track.offsetL), duration: us(track.end - track.start) },
+          source_timerange: { start: us(track.offsetL), duration: us(track.end) - us(track.start) },
           volume: track.silent ? 0 : 1, clip: null, hdr_settings: null
         });
       } else if (track instanceof VideoTrack || track instanceof ImageTrack) {
@@ -171,7 +171,7 @@ export async function buildJianyingDraft(lines: { list: Track[] }[], { name, dra
         segments.push({
           // eslint-disable-next-line no-await-in-loop -- 素材按顺序写入 zip
           ...baseSegment(await mediaMaterial(track), track, speedId, renderIndex),
-          source_timerange: track instanceof VideoTrack ? { start: us(track.offsetL), duration: us(track.end - track.start) } : { start: 0, duration: us(track.end - track.start) },
+          source_timerange: track instanceof VideoTrack ? { start: us(track.offsetL), duration: us(track.end) - us(track.start) } : { start: 0, duration: us(track.end) - us(track.start) },
           volume: track instanceof VideoTrack && !track.silent ? 1 : 0,
           clip: clip(track, track.drawWidth / fit, player),
           uniform_scale: { on: true, value: 1 },
