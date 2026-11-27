@@ -81,16 +81,17 @@ export function useEditorDraft() {
   onMounted(async() => {
     window.addEventListener('pagehide', onPageHide);
     project.setFlush(() => flush());
-    navigator.storage.persist?.().catch(() => false);
+    navigator.storage?.persist?.().catch(() => false);
     resources.load();
     let migrated: string | null = null;
     let journal: string | null = null;
     try {
-      const { meta, created } = await project.openLast();
-      // 旧版本的草稿存在 localStorage，首次打开时迁入新工程
-      migrated = created ? localStorage.getItem(draftKey) : null;
-      journal = migrated ?? localStorage.getItem(journalKey(meta.id));
-      const json = journal ?? await projectStore.load(meta.id);
+      const { meta } = await project.openLast();
+      journal = localStorage.getItem(journalKey(meta.id));
+      const stored = journal ? null : await projectStore.load(meta.id);
+      // 旧版本的草稿存在 localStorage，当前工程还没有内容时迁入，迁移成功后才删除
+      migrated = journal || stored ? null : localStorage.getItem(draftKey);
+      const json = journal ?? stored ?? migrated;
       if (json) {
         const draft = await restoreDraft(json);
         if (disposed) return;
@@ -111,12 +112,12 @@ export function useEditorDraft() {
         if (restoreWarning.value) unrecoveredTimeline = JSON.stringify(lines.value);
         restoring.value = false;
         // 快照比 OPFS 中的工程新（上次关闭时异步写入可能未完成），补写一次
-        if (journal && !restoreWarning.value) {
+        if ((journal || migrated) && !restoreWarning.value) {
           await persist(saved, assetIdsOf(lines.value));
-          if (migrated) localStorage.removeItem(draftKey);
-          else if (!saveWarning.value && project.current && localStorage.getItem(journalKey(project.current.id)) === journal) {
-            localStorage.removeItem(journalKey(project.current.id));
-          }
+          const key = project.current && journalKey(project.current.id);
+          // 写入失败时保留快照和旧草稿
+          if (!saveWarning.value && migrated) localStorage.removeItem(draftKey);
+          else if (!saveWarning.value && key && localStorage.getItem(key) === journal) localStorage.removeItem(key);
         }
       }
     }
