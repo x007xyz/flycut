@@ -47,7 +47,7 @@
   const store = useTrackState();
   const playerStore = usePlayerState();
   const page = usePageState();
-  const ui = { toolbar: false, ruler: true, sidebar: true };
+  const ui = { toolbar: false, ruler: true, sidebar: { showTrackActions: false }};
   const policies = { allowCrossTrackType: false, removeEmptyTracks: true, orderAudioToBottom: true };
   const document = computed(() => toDocument(store.trackList as TrackLineItem[]));
   const editor = shallowRef<NativeTimelineEditor>();
