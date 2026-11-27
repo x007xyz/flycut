@@ -9,7 +9,6 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useTrackState } from '@/stores/trackState';
 import FormItem from '@/components/item/formItem/FormItem.vue';
 
-vi.mock('@webav/av-cliper', () => ({ ImgClip: vi.fn(), OffscreenSprite: vi.fn() }));
 vi.mock('element-plus/es/components/switch/style/css', () => ({}));
 vi.mock('element-plus/es/components/input/style/css', () => ({}));
 vi.mock('element-plus/es/components/input-number/style/css', () => ({}));

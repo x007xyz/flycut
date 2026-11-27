@@ -1,8 +1,7 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
-import { videoDecoder, splitClip } from '@/utils/webcodecs';
-import { OffscreenSprite } from '@webav/av-cliper';
-import { baseFps, UnitFrame2μs } from '@/data/trackConfig';
+import { videoDecoder } from '@/utils/webcodecs';
+import { baseFps } from '@/data/trackConfig';
 
 export interface VideoSource {
   id: string,
@@ -67,19 +66,17 @@ export class VideoTrack implements BaseTractItem {
   getDrawY(height: number) {
     return height / 2 - this.drawHeight / 2 + this.centerY;
   }
-  /**
-   * 渲染需要优化
-   * TODO: 不需要没一次都去解码
-   * TODO: 优化画布渲染
-   */
-  draw(ctx: CanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
-    const frame = Math.max(frameIndex - this.start + this.offsetL, 1); // 默认展示首帧
-    const start = performance.now();
-    return videoDecoder.getFrame(this.source.id, frame).then(async vf => {
-      if (vf) {
-        console.log('渲染耗时', performance.now() - start, 'ms');
-        ctx.drawImage(vf, 0, 0, this.source.width, this.source.height, this.getDrawX(width), this.getDrawY(height), this.drawWidth, this.drawHeight);
-        vf?.close();
+  // 片段内某一帧对应的素材时间，单位为秒
+  sourceTime(frameIndex: number) {
+    return Math.max(frameIndex - this.start + this.offsetL, 0) / baseFps;
+  }
+  draw(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
+    return videoDecoder.getFrame(this.source.id, this.sourceTime(frameIndex)).then(sample => {
+      if (!sample) return;
+      try {
+        sample.draw(ctx, this.getDrawX(width), this.getDrawY(height), this.drawWidth, this.drawHeight);
+      } finally {
+        sample.close();
       }
     });
   }
@@ -110,23 +107,6 @@ export class VideoTrack implements BaseTractItem {
     if (this.audio && !this.audio.paused) {
       this.audio.pause();
     }
-  }
-  // 生成合成对象
-  async combine(playerSize: { width: number, height: number }, outputRatio: number) {
-    const video = await videoDecoder.decode({ id: this.source.id });
-    if (!video) {
-      throw new Error('clip is not ready');
-    }
-    const clip = await splitClip(video, { offsetL: this.offsetL, offsetR: this.offsetR, frameCount: this.frameCount });
-    const spr = new OffscreenSprite(clip);
-    // TODO：需要支持裁剪
-    spr.time = { offset: this.start * UnitFrame2μs, duration: (this.end - this.start) * UnitFrame2μs };
-    spr.rect.x = this.getDrawX(playerSize.width) * outputRatio;
-    spr.rect.y = this.getDrawY(playerSize.height) * outputRatio;
-    spr.rect.w = this.drawWidth * outputRatio;
-    spr.rect.h = this.drawHeight * outputRatio;
-
-    return spr;
   }
   split(cutFrame: number) {
     const copy = new VideoTrack(this.source, cutFrame);

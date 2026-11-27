@@ -1,4 +1,4 @@
-type VideoOutput = () => ReadableStream<Uint8Array>;
+type VideoOutput = (target: WritableStream) => Promise<void>;
 type ChooseDestination = () => Promise<WritableStream | undefined>;
 
 export async function saveRenderedVideo(render: VideoOutput, chooseDestination: ChooseDestination) {
@@ -8,7 +8,7 @@ export async function saveRenderedVideo(render: VideoOutput, chooseDestination: 
   try {
     const staging = await tempFile.createWritable();
     try {
-      await render().pipeTo(staging);
+      await render(staging);
     } catch (error) {
       await staging.abort().catch(() => {});
       throw error;

@@ -23,7 +23,7 @@ export async function importVideo(file: File) {
       format: file.type || 'video/mp4',
       width: clip.meta.width,
       height: clip.meta.height,
-      duration: clip.meta.duration / 1e6
+      duration: clip.meta.duration
     }, startFrame);
     track.resize({ width: player.playerWidth, height: player.playerHeight });
     tracks.addTrack(track);
