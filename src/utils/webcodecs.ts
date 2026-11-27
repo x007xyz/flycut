@@ -65,9 +65,13 @@ function canvasToBlob(canvas: HTMLCanvasElement | OffscreenCanvas) {
   });
 }
 
+const playbackLookahead = 1;
+
 export class MediaAsset {
   #videoSink?: VideoSampleSink;
   #audioSink?: AudioBufferSink;
+  #playback: { iterator: AsyncGenerator<VideoSample, void>, current: VideoSample | null, next: VideoSample | null } | null = null;
+  #queue: Promise<unknown> = Promise.resolve();
   readonly input: Input;
   readonly videoTrack: InputVideoTrack | null;
   readonly audioTrack: InputAudioTrack | null;
@@ -112,8 +116,37 @@ export class MediaAsset {
     return Math.min(Math.max(time, this.firstTimestamp), Math.max(this.meta.duration - 1e-3, this.firstTimestamp));
   }
 
+  // Preview mostly moves forward, so keep one decoder running instead of decoding from a keyframe per frame.
   getSample(time: number): Promise<VideoSample | null> {
-    return this.videoSink.getSample(this.sampleTime(time));
+    const sample = this.#queue.then(() => this.#sampleAt(this.sampleTime(time)));
+    this.#queue = sample.catch(() => {});
+    return sample;
+  }
+
+  async #sampleAt(time: number) {
+    const current = this.#playback?.current;
+    const playback = this.#playback && current && time >= current.timestamp && time - current.timestamp <= playbackLookahead
+      ? this.#playback
+      : await this.#seek(time);
+    while (playback.next && playback.next.timestamp <= time) {
+      playback.current?.close();
+      playback.current = playback.next;
+      playback.next = (await playback.iterator.next()).value ?? null;
+    }
+    return playback.current?.clone() ?? null;
+  }
+
+  async #seek(time: number) {
+    if (this.#playback) {
+      this.#playback.current?.close();
+      this.#playback.next?.close();
+      await this.#playback.iterator.return();
+    }
+    const iterator = this.videoSink.samples(time);
+    const current = (await iterator.next()).value ?? null;
+    const next = (await iterator.next()).value ?? null;
+    this.#playback = { iterator, current, next };
+    return this.#playback;
   }
 
   async thumbnails(width: number, step = 1) {
