@@ -10,7 +10,29 @@
       <div class="ml-2">
         <img class="h-8" src="@/assets/text_logo.png" alt="">
       </div>
-      <!-- <span class="text-xs select-none ml-4">自动保存：2023-02-10 00:51</span> -->
+      <ElDropdown class="ml-6 project-menu" trigger="click" @command="onProjectCommand">
+        <span class="cursor-pointer select-none text-sm flex items-center">
+          <span class="project-name max-w-48 truncate">{{ project.current?.name ?? '' }}</span>
+          <ElIcon class="ml-1"><ArrowDown /></ElIcon>
+        </span>
+        <template #dropdown>
+          <ElDropdownMenu>
+            <ElDropdownItem command="rename">重命名</ElDropdownItem>
+            <ElDropdownItem command="create">新建工程</ElDropdownItem>
+            <ElDropdownItem command="import">导入工程（.flycut）</ElDropdownItem>
+            <ElDropdownItem command="export">导出工程（.flycut）</ElDropdownItem>
+            <ElDropdownItem command="remove">删除当前工程</ElDropdownItem>
+            <ElDropdownItem
+              v-for="(item, index) in otherProjects"
+              :key="item.id"
+              :command="`open:${item.id}`"
+              :divided="index === 0"
+            >
+              打开：{{ item.name }}
+            </ElDropdownItem>
+          </ElDropdownMenu>
+        </template>
+      </ElDropdown>
     </div>
     <div class="flex w-1/3 flex-row-reverse pr-10 items-center">
       <ElButton color="#683CFD" size="default" :disabled="exporting" @click="onGenerate">
@@ -35,7 +57,7 @@
 <script setup lang="ts">
   /* eslint-disable camelcase */
   import { ref, computed, toRaw } from 'vue';
-  import { Download, Sunny, Moon } from '@element-plus/icons-vue';
+  import { ArrowDown, Download, Sunny, Moon } from '@element-plus/icons-vue';
   import { usePageState } from '@/stores/pageState';
   import { useTrackState } from '@/stores/trackState';
   import { usePlayerState } from '@/stores/playerState';
@@ -44,10 +66,67 @@
   import { saveRenderedVideo } from '@/utils/videoExport';
   import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
   import 'element-plus/es/components/message-box/style/css';
+  import { useProjectState } from '@/stores/projectState';
+  import { useResourceState } from '@/stores/resourceStore';
+  import { packProject, unpackProject } from '@/storage/projectPackage';
+  import { assetIdsOf, captureTimeline, encodeDraft } from '@/utils/editorDraft';
+  import { selectFile } from '@/utils/file';
 
   const trackState = useTrackState();
 
   const playerState = usePlayerState();
+
+  const project = useProjectState();
+  const resources = useResourceState();
+  const otherProjects = computed(() => project.projects.filter(({ id }) => id !== project.current?.id));
+
+  function download(blob: Blob, name: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function exportProject() {
+    const lines = captureTimeline(trackState.trackList);
+    const json = encodeDraft(lines, trackState.trackScale, playerState.playStartFrame);
+    const name = project.current?.name ?? '工程';
+    download(await packProject(name, json, assetIdsOf(lines)), `${name}.flycut`);
+  }
+
+  async function importProject() {
+    const [file] = await selectFile({ accept: '.flycut', multiple: false }).catch(() => []);
+    if (!file) return;
+    const { meta, assets } = await unpackProject(file);
+    assets.forEach(record => resources.add(record));
+    await project.switchTo(meta.id);
+  }
+
+  async function prompt(title: string, value: string) {
+    const { value: name } = await ElMessageBox.prompt('', title, { inputValue: value, confirmButtonText: '确定', cancelButtonText: '取消' });
+    return name.trim();
+  }
+
+  async function onProjectCommand(command: string) {
+    try {
+      if (command === 'rename') {
+        const name = await prompt('重命名工程', project.current?.name ?? '');
+        if (name) await project.rename(name);
+      } else if (command === 'create') await project.create();
+      else if (command === 'import') await importProject();
+      else if (command === 'export') await exportProject();
+      else if (command === 'remove') {
+        await ElMessageBox.confirm(`删除工程“${project.current?.name}”？素材会保留在素材库中。`, '删除工程', { confirmButtonText: '删除', cancelButtonText: '取消' });
+        await project.removeCurrent();
+      } else if (command.startsWith('open:')) await project.switchTo(command.slice(5));
+    } catch (error) {
+      if (error === 'cancel' || error === 'close') return;
+      console.error(error);
+      ElMessage.error('工程操作失败');
+    }
+  }
 
   const store = usePageState();
   const size = ref(14);

@@ -1,6 +1,7 @@
 /* eslint-disable no-await-in-loop -- audio buffers are decoded in order */
 import type { ClipRenderContext, MediaProvider } from '@flycut/timeline-kit/core';
 import { audioDecoder, videoDecoder } from '@/utils/webcodecs';
+import { assetStore } from '@/storage/assets';
 
 type Thumbnail = { image: ImageBitmap, ts: number };
 
@@ -36,10 +37,19 @@ async function decodePeaks(id: string, type: string) {
   return peaks;
 }
 
-function peaksOf(id: string, type: string) {
+// 波形按 8 位量化后缓存在素材目录，体积是 Float32 的四分之一
+async function cachedPeaks(id: string, type: string) {
+  const cached = await assetStore.readCache(id, 'peaks.u8');
+  if (cached) return Float32Array.from(new Uint8Array(await cached.arrayBuffer()), value => value / 255);
+  const peaks = await decodePeaks(id, type);
+  assetStore.writeCache(id, 'peaks.u8', Uint8Array.from(peaks, value => Math.round(Math.min(1, value) * 255)));
+  return peaks;
+}
+
+export function peaksOf(id: string, type: string) {
   let peaks = peakCache.get(id);
   if (!peaks) {
-    peaks = decodePeaks(id, type);
+    peaks = cachedPeaks(id, type);
     peaks.catch(() => peakCache.delete(id));
     peakCache.set(id, peaks);
   }

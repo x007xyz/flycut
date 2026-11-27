@@ -37,7 +37,9 @@
   import { usePlayerState } from '@/stores/playerState';
   import { usePageState } from '@/stores/pageState';
   import { baseFps } from '@/data/trackConfig';
-  import { importMedia } from '@/utils/importMedia';
+  import { assetDragType, importMedia, insertAsset } from '@/utils/importMedia';
+  import { useResourceState } from '@/stores/resourceStore';
+  const resources = useResourceState();
   import { computed, shallowRef, watch } from 'vue';
   import type { TrackLineItem } from '@/class/Track';
   import { applyDocument, toDocument } from './document';
@@ -94,16 +96,20 @@
   }
 
   function onFileDragOver(event: DragEvent) {
-    if (!event.dataTransfer?.types.includes('Files')) return;
+    const types = event.dataTransfer?.types ?? [];
+    if (!types.includes('Files') && !types.includes(assetDragType)) return;
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'copy';
+    event.dataTransfer!.dropEffect = 'copy';
   }
   async function onFileDrop(event: DragEvent) {
+    const assetId = event.dataTransfer?.getData(assetDragType);
     const files = event.dataTransfer?.files;
-    if (!files?.length) return;
+    if (!assetId && !files?.length) return;
     event.preventDefault();
     event.stopPropagation();
-    await importMedia(Array.from(files));
+    const record = assetId && resources.assets.find(({ id }) => id === assetId);
+    if (record) await insertAsset(record);
+    else if (files?.length) await importMedia(Array.from(files), { insert: true });
   }
 </script>
 

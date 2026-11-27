@@ -10,12 +10,11 @@ import {
   type InputVideoTrack,
   type VideoSample
 } from 'mediabunny';
-import { file, write } from 'opfs-tools';
+import { assetStore } from '@/storage/assets';
 import type { VideoSource } from '@/class/VideoTrack';
 
 interface DecodeOptions {
   id: string,
-  stream?: ReadableStream<Uint8Array>,
   type?: string
 }
 
@@ -26,28 +25,16 @@ export interface MediaMeta {
   duration: number
 }
 
-async function readFile(id: string, stream?: ReadableStream<Uint8Array>) {
-  const cached = file(id);
-  if (!(await cached.exists())) {
-    if (!stream) throw new Error(`Media ${id} is not cached`);
-    await write(id, stream);
-  } else if (stream) {
-    await stream.cancel().catch(() => {});
-  }
-  const directory = await navigator.storage.getDirectory();
-  return (await directory.getFileHandle(id)).getFile();
-}
-
 class AssetCache<T> {
   #cache = new Map<string, Promise<T>>();
   #load: (blob: Blob, type?: string) => Promise<T>;
   constructor(load: (blob: Blob, type?: string) => Promise<T>) {
     this.#load = load;
   }
-  get({ id, stream, type }: DecodeOptions) {
+  get({ id, type }: DecodeOptions) {
     let asset = this.#cache.get(id);
     if (!asset) {
-      asset = readFile(id, stream).then(blob => this.#load(blob, type));
+      asset = assetStore.file(id).then(blob => this.#load(blob, type));
       asset.catch(() => this.#cache.delete(id));
       this.#cache.set(id, asset);
     }
@@ -147,6 +134,14 @@ export class MediaAsset {
     const next = (await iterator.next()).value ?? null;
     this.#playback = { iterator, current, next };
     return this.#playback;
+  }
+
+  async poster(width: number) {
+    if (!this.videoTrack) return null;
+    const height = Math.max(1, Math.round(width * this.meta.height / Math.max(this.meta.width, 1)));
+    const sink = new CanvasSink(this.videoTrack, { width, height, fit: 'cover' });
+    const wrapped = await sink.getCanvas(this.sampleTime(0));
+    return wrapped ? canvasToBlob(wrapped.canvas) : null;
   }
 
   async thumbnails(width: number, step = 1) {

@@ -26,15 +26,15 @@ importers:
       element-plus:
         specifier: ^2.2.29
         version: 2.2.29(vue@3.2.47)
+      fflate:
+        specifier: 0.8.2
+        version: 0.8.2
       lodash-es:
         specifier: ^4.17.21
         version: 4.17.21
       mediabunny:
         specifier: 1.66.5
         version: 1.66.5
-      opfs-tools:
-        specifier: ^0.4.1
-        version: 0.4.1
       pinia:
         specifier: ^2.0.28
         version: 2.0.30(typescript@4.7.4)(vue@3.2.47)
@@ -1608,6 +1608,9 @@ packages:
   fastq@1.15.0:
     resolution: {integrity: sha512-wBrocU2LCXXa+lWBt8RoIRD89Fi8OdABODa/kEnyeyjS5aZO5/GNvI5sEINADqP/h8M29UHTHUb53sUu5Ihqdw==}
 
+  fflate@0.8.2:
+    resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
+
   file-entry-cache@6.0.1:
     resolution: {integrity: sha512-7Gps/XWymbLk2QLYK4NzpMOrYjMhdIxXuIvy2QBsLE6ljuodKvdkWs/cpyJJ3CVIVpH0Oi1Hvg1ovbMzLdFBBg==}
     engines: {node: ^10.12.0 || >=12.0.0}
@@ -2335,9 +2338,6 @@ packages:
   open@10.1.0:
     resolution: {integrity: sha512-mnkeQ1qP5Ue2wd+aivTD3NHd/lZ96Lu0jgf0pwktLPtx6cTZiH7tyeGRRHs0zX0rbrahXPnXlUnbeXyaBBuIaw==}
     engines: {node: '>=18'}
-
-  opfs-tools@0.4.1:
-    resolution: {integrity: sha512-yXmcZ7LVDzOxfTV1eXdWQL20rm+8f1uQqTLYD/kuh6d/7qBWoAXKcYqOQITfReyNR9k/6pOIdgmIT1FEACMeJw==}
 
   optionator@0.8.3:
     resolution: {integrity: sha512-+IW9pACdk3XWmmTXG8m3upGUJst5XRGzxMRjXzAuJ1XnIFNvfhjjIuYkDvysnPQ7qzqVzLt78BCruntqRhWQbA==}
@@ -5147,6 +5147,8 @@ snapshots:
     dependencies:
       reusify: 1.0.4
 
+  fflate@0.8.2: {}
+
   file-entry-cache@6.0.1:
     dependencies:
       flat-cache: 3.0.4
@@ -5845,8 +5847,6 @@ snapshots:
       define-lazy-prop: 3.0.0
       is-inside-container: 1.0.0
       is-wsl: 3.1.0
-
-  opfs-tools@0.4.1: {}
 
   optionator@0.8.3:
     dependencies:
