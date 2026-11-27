@@ -1,4 +1,5 @@
 import { toRaw } from 'vue';
+import { ElLoading } from 'element-plus';
 import tools from './tools.json';
 import { baseFps } from '@/data/trackConfig';
 import { TextTrack } from '@/class/TextTrack';
@@ -287,13 +288,19 @@ const handlers: Record<string, (args: Args) => unknown> = {
     const name = typeof fileName === 'string' && fileName ? fileName : `${useProjectState().current?.name ?? 'flycut'}.mp4`;
     const chunks: Blob[] = [];
     let size = 0;
+    // 与界面导出一样遮住编辑器，合成期间片段不能被修改
+    const loading = ElLoading.service({ text: '正在合成视频' });
     // 没有用户手势时无法弹出保存对话框，合成后直接下载
-    await saveRenderedVideo(target => renderTimeline(tracks, { width: player.playerWidth, height: player.playerHeight }, target), async() => new WritableStream<Uint8Array>({
-      write(chunk) {
-        chunks.push(new Blob([chunk]));
-        size += chunk.byteLength;
-      }
-    }));
+    try {
+      await saveRenderedVideo(target => renderTimeline(tracks, { width: player.playerWidth, height: player.playerHeight }, target), async() => new WritableStream<Uint8Array>({
+        write(chunk) {
+          chunks.push(new Blob([chunk]));
+          size += chunk.byteLength;
+        }
+      }));
+    } finally {
+      loading.close();
+    }
     const url = URL.createObjectURL(new Blob(chunks, { type: 'video/mp4' }));
     const link = document.createElement('a');
     link.href = url;
