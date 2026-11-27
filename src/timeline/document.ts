@@ -45,7 +45,7 @@ export function applyDocument(lines: TrackLineItem[], document: TimelineDocument
       const track = tracks.get(clip.id);
       if (!track) return [];
       const length = track.end - track.start;
-      const moved = Math.abs(clip.endMs - clip.startMs - frameMs(length)) < 1;
+      const moved = Math.abs(clip.endMs - clip.startMs - (frameMs(track.end) - frameMs(track.start))) < 0.5;
       track.start = msFrame(clip.startMs);
       track.end = moved ? track.start + length : Math.max(track.start + 1, msFrame(clip.endMs));
       if (trimmable(track) && clip.trim) {
