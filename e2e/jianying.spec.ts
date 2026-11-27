@@ -25,7 +25,7 @@ test('exports a JianYing draft with media, placement and text', async({ page }) 
   const [asset] = await call('list_assets');
   const video = await call('add_clip', { assetId: asset.id, start: 0 });
   await call('update_clip', { clipId: video.id, x: 45, muted: true });
-  await call('add_text', { content: '你好剪映', start: 0.5, duration: 1, y: 100 });
+  await call('add_text', { content: '你好剪映', start: 0.5, duration: 1, y: 100, fill: 'black', stroke: 'rgb(255, 0, 0)' });
 
   await page.locator('.project-menu').click();
   await page.getByText('导出剪映草稿', { exact: true }).click();
@@ -62,6 +62,9 @@ test('exports a JianYing draft with media, placement and text', async({ page }) 
   expect(textSegment.clip.transform.y).toBeCloseTo(-100 / 160, 3);
   const text = content.materials.texts.find((item: any) => item.id === textSegment.material_id);
   expect(JSON.parse(text.content).text).toBe('你好剪映');
+  const [style] = JSON.parse(text.content).styles;
+  expect(style.fill.content.solid.color).toEqual([0, 0, 0]);
+  expect(style.strokes[0].content.solid.color).toEqual([1, 0, 0]);
   // 文字轨在 flycut 中位于视频之上，剪映中排在视频轨之后
   expect(content.tracks.indexOf(textTrack)).toBeGreaterThan(content.tracks.indexOf(videoTrack));
   expect(content.duration).toBe(Math.max(...content.tracks.flatMap((track: any) => track.segments.map((s: any) => s.target_timerange.start + s.target_timerange.duration))));

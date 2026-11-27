@@ -34,10 +34,21 @@ export function safeName(name: string) {
   return name.replace(/[\\/:*?"<>|\s]+/g, '_').replace(/^\.+/, '') || 'flycut';
 }
 
-function color(value: string | undefined, fallback: [number, number, number]) {
-  const hex = value?.match(/^#?([\da-f]{6})/i)?.[1];
-  if (!hex) return fallback;
-  return [0, 2, 4].map(index => round(parseInt(hex.slice(index, index + 2), 16) / 255));
+let colorContext: OffscreenCanvasRenderingContext2D | undefined;
+const invalidColor = '#010203';
+
+/** 借助 Canvas 把任意 CSS 颜色规范成 #rrggbb 或 rgba()，再转成剪映的 0-1 RGB */
+function color(value: string | undefined, fallback: number[]) {
+  if (!value) return fallback;
+  colorContext ??= new OffscreenCanvas(1, 1).getContext('2d') as OffscreenCanvasRenderingContext2D;
+  colorContext.fillStyle = invalidColor;
+  colorContext.fillStyle = value;
+  const normalized = String(colorContext.fillStyle);
+  if (normalized === invalidColor && value.toLowerCase() !== invalidColor) return fallback;
+  const hex = normalized.match(/^#([\da-f]{6})$/i)?.[1];
+  const channels = hex ? [0, 2, 4].map(index => parseInt(hex.slice(index, index + 2), 16)) : normalized.match(/[\d.]+/g)?.slice(0, 3)
+.map(Number);
+  return channels?.length === 3 ? channels.map(channel => round(channel / 255)) : fallback;
 }
 
 function baseSegment(materialId: string, track: Track, speedId: string, renderIndex: number): Json {
