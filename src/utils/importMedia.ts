@@ -70,11 +70,14 @@ const importers: Record<MediaKind, (file: File) => Promise<void>> = {
 
 /** 按文件类型导入视频、图片或音频，返回实际导入的文件数 */
 export async function importMedia(files: Iterable<File>) {
-  const supported = Array.from(files).flatMap(file => {
+  const list = Array.from(files);
+  const supported = list.flatMap(file => {
     const kind = mediaKind(file);
     return kind ? [{ file, kind }] : [];
   });
+  const skipped = list.filter(file => !mediaKind(file)).map(file => file.name);
   if (!supported.length) ElMessage.warning('请导入视频、图片或音频文件');
+  else if (skipped.length) ElMessage.warning(`已跳过不支持的文件：${skipped.join('、')}`);
   // 依次导入，保持选择顺序
   await supported.reduce((done, { file, kind }) => done.then(() => importers[kind](file)), Promise.resolve());
   return supported.length;
