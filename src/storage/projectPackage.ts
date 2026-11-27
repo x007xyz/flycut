@@ -41,11 +41,17 @@ export async function unpackProject(file: Blob): Promise<{ meta: ProjectMeta, as
     const record = JSON.parse(strFromU8(bytes)) as AssetRecord;
     // eslint-disable-next-line no-await-in-loop -- 素材逐个校验写入
     if (record.id !== id || await getMD5(data.slice().buffer) !== id) throw new Error(`Asset ${id} is corrupted`);
+    // 素材库已有的素材以库中的元信息为准，不让工程包覆盖
     // eslint-disable-next-line no-await-in-loop
-    await assetStore.putData(id, new Blob([data]));
-    // eslint-disable-next-line no-await-in-loop
-    await assetStore.putMeta(record);
-    assets.push(record);
+    const existing = await assetStore.meta(id);
+    if (existing) assets.push(existing);
+    else {
+      // eslint-disable-next-line no-await-in-loop
+      await assetStore.putData(id, new Blob([data]));
+      // eslint-disable-next-line no-await-in-loop
+      await assetStore.putMeta(record);
+      assets.push(record);
+    }
     }
   }
 
