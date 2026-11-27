@@ -58,7 +58,12 @@ async function removeClip(page: Page, selector: string) {
   await page.keyboard.press('Backspace');
 }
 
-async function dropFile(page: Page, name = 'sample.mp4') {
+async function openResources(page: Page) {
+  await page.locator('.tabsToggle').getByText('资源', { exact: true })
+    .click();
+}
+
+async function dropRawFile(page: Page, name: string) {
   const bytes = [...readFileSync(path.resolve('e2e/fixtures', name))];
   const dataTransfer = await page.evaluateHandle(({ bytes: fileBytes, name: fileName }) => {
     const transfer = new DataTransfer();
@@ -71,6 +76,18 @@ async function dropFile(page: Page, name = 'sample.mp4') {
   await timeline.dispatchEvent('dragover', { dataTransfer });
   await timeline.dispatchEvent('drop', { dataTransfer });
   await dataTransfer.dispose();
+}
+
+// 文件先导入资源列表，再把资源卡片拖到时间轴
+async function addMedia(page: Page, name = 'sample.mp4') {
+  await openResources(page);
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByText('导入资源', { exact: true }).click();
+  await (await chooser).setFiles(path.resolve('e2e/fixtures', name));
+  const card = page.locator(`.media-card[title="${name}"]`);
+  await expect(card).toHaveCount(1);
+  await expect(page.locator('.media-loading')).toHaveCount(0);
+  await card.dragTo(page.locator('.trackList'));
 }
 
 async function expectImported(page: Page) {
@@ -115,12 +132,12 @@ async function openEditor(page: Page) {
 test.beforeEach(async({ page }) => openEditor(page));
 
 test('empty project offers media drop and has no tracks', async({ page }) => {
-  await expect(page.getByText('将视频、图片或音频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
+  await expect(page.getByText('从资源列表把视频、图片或音频拖到这里，开始编辑你的大作吧~')).toBeVisible();
   await expect(page.locator('.tk-track-row')).toHaveCount(0);
 });
 
-test('MP4 drop creates a video track and renders preview pixels', async({ page }) => {
-  await dropFile(page);
+test('dragging an MP4 resource to the timeline creates a video track and renders preview pixels', async({ page }) => {
+  await addMedia(page);
   await expectImported(page);
 });
 
@@ -138,7 +155,7 @@ async function dragVideo(page: Page, dx: number) {
 }
 
 test('preview video is a DOM element that moves with the Moveable drag', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const { target, before, picture } = await dragVideo(page, 40);
   await expect(page.locator('.cc-move .moveable-control').first()).toBeVisible();
@@ -213,9 +230,18 @@ test('one resource chooser imports video, image and audio together', async({ pag
   await expect(page.locator('.move-target[data-kind="image"]')).toHaveCount(1);
 });
 
-test('unsupported drop warns without creating tracks', async({ page }) => {
-  await dropFile(page, 'not-video.txt');
+test('files dropped on the timeline are not imported and unsupported resources warn', async({ page }) => {
+  await dropRawFile(page, 'sample.mp4');
+  await expect(page.getByText('请先在左侧“资源”中导入文件，再把资源拖到时间轴', { exact: true })).toBeVisible();
+  await expect(page.locator('.tk-track-row')).toHaveCount(0);
+  await openResources(page);
+  await expect(page.locator('.media-card, .media-loading')).toHaveCount(0);
+
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByText('导入资源', { exact: true }).click();
+  await (await chooser).setFiles(path.resolve('e2e/fixtures/not-video.txt'));
   await expect(page.getByText('请导入视频、图片或音频文件', { exact: true })).toBeVisible();
+  await expect(page.locator('.media-card')).toHaveCount(0);
   await expect(page.locator('.tk-track-row')).toHaveCount(0);
 });
 
@@ -230,7 +256,7 @@ test('autosave restores split video, edited text and the playhead, then resumes 
       return audio;
     } as typeof Audio;
   });
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
 
   const video = page.locator('.tk-track-clip[data-type="video"]');
@@ -288,7 +314,7 @@ test('muted video does not play its audio in the preview', async({ page }) => {
       return audio;
     } as typeof Audio;
   });
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await page.locator('.move-target[data-kind="video"]').click();
   const mute = page.locator('.formItem', { hasText: '静音' }).locator('.el-switch');
@@ -309,7 +335,7 @@ test('muted video does not play its audio in the preview', async({ page }) => {
 });
 
 test('timeline trim updates the source range and undo restores it', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const video = page.locator('.tk-track-clip[data-type="video"]');
   const offsetL = async() => { const clips = videoClips(await readDraft(page)); return clips ? clips[0].l ?? 0 : undefined; };
@@ -337,7 +363,7 @@ test('deleting the last clip stays deleted after an immediate reload', async({ p
   await removeClip(page, textClip);
   await page.reload();
   await expect(page.locator('.tk-track-clip')).toHaveCount(0);
-  await expect(page.getByText('将视频、图片或音频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
+  await expect(page.getByText('从资源列表把视频、图片或音频拖到这里，开始编辑你的大作吧~')).toBeVisible();
   expect(JSON.parse(await readDraft(page) ?? '').lines).toEqual([]);
 });
 
@@ -358,7 +384,7 @@ test('clearing a numeric text property resets it without invalidating the draft'
 });
 
 test('missing cached media preserves the original draft until the timeline changes', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await addText(page, 'Still here');
   await expect.poll(() => readDraft(page)).toContain('Still here');
@@ -398,7 +424,7 @@ test('an invalid draft leaves a usable editor without overwriting the original',
 
 for (const encoder of ['VideoEncoder', 'AudioEncoder']) {
   test(`unsupported ${encoder} clears export loader without opening picker`, async({ page }) => {
-    await dropFile(page);
+    await addMedia(page);
     await expectImported(page);
     await page.evaluate(encoderName => {
       (window as any)[encoderName].isConfigSupported = async(config: unknown) => ({ supported: false, config });
@@ -423,7 +449,7 @@ test('video with a text overlay checks the MP4 output encoder settings', async({
     window.AudioEncoder.isConfigSupported = async config => ({ supported: false, config });
   });
 
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await page.getByText('文字', { exact: true }).click();
   await page.getByText('添加文字', { exact: true }).click();
@@ -502,7 +528,7 @@ async function expectPlayableAudio(page: Page, filename: string) {
 }
 
 test('exported MP4 plays the source audio and can be edited again', async({ page, browser, baseURL }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const name = 'with-audio.mp4';
   await saveToOpfs(page, name);
@@ -539,7 +565,7 @@ test('missing Opus metadata aborts export without opening the save picker', asyn
       }
     };
   });
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await page.getByRole('button', { name: '合成视频' }).click();
   await expect(page.getByText('导出视频失败，请重试')).toBeVisible();
@@ -547,7 +573,7 @@ test('missing Opus metadata aborts export without opening the save picker', asyn
 });
 
 test('encoding recovers after confirm and save-picker cancellation', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const exportButton = page.getByRole('button', { name: '合成视频' });
   async function renderAndCancel(action: string, calls: number) {
@@ -565,7 +591,7 @@ test('encoding recovers after confirm and save-picker cancellation', async({ pag
 });
 
 test('exported MP4 keeps the position the video was dragged to', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const { before } = await dragVideo(page, 0);
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
@@ -625,11 +651,6 @@ test('exported MP4 keeps the position the video was dragged to', async({ page })
 
 const videoClip = '.tk-track-clip[data-type="video"]';
 
-async function openResources(page: Page) {
-  await page.locator('.tabsToggle').getByText('资源', { exact: true })
-    .click();
-}
-
 function opfsEntries(page: Page, ...dirs: string[]) {
   return page.evaluate(async segments => {
     let dir = await navigator.storage.getDirectory();
@@ -646,7 +667,7 @@ function opfsEntries(page: Page, ...dirs: string[]) {
 }
 
 test('resource library persists imported media and reuses it after a reload', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await openResources(page);
   await expect(page.locator('.media-card')).toHaveCount(1);
@@ -662,7 +683,7 @@ test('resource library persists imported media and reuses it after a reload', as
   await card.locator('.media-add').click();
   await expect(page.locator(videoClip)).toHaveCount(2);
 
-  await dropFile(page);
+  await addMedia(page);
   await expect(page.locator(videoClip)).toHaveCount(3);
   await expect(card).toHaveCount(1);
   await expect.poll(async() => JSON.parse(await readDraft(page) ?? '{}').lines
@@ -673,7 +694,7 @@ test('resource library persists imported media and reuses it after a reload', as
 });
 
 test('a legacy localStorage draft and root-level OPFS media migrate into a project', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await expect.poll(() => readDraft(page)).toContain('"v":2');
   const { id, n: name, f: format, d: duration, w: width, h: height } = JSON.parse(await readDraft(page) ?? '{}').assets[0];
@@ -714,7 +735,7 @@ test('a legacy localStorage draft and root-level OPFS media migrate into a proje
 });
 
 test('a .flycut package restores the project and its media in a fresh browser', async({ page, browser, baseURL }, testInfo) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await addText(page, 'Packed caption');
   await expect.poll(() => readDraft(page)).toContain('Packed caption');
@@ -745,7 +766,7 @@ test('a .flycut package restores the project and its media in a fresh browser', 
 });
 
 test('projects can be created and switched, and cleanup keeps assets used by any project', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await expect.poll(() => readDraft(page)).toContain('"v":2');
   await page.locator('.project-menu').click();

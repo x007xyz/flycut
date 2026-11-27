@@ -122,9 +122,9 @@ export async function insertAsset(record: AssetRecord) {
 
 /**
  * 导入视频、图片或音频到素材列表，处理过程在列表中显示为加载卡片。
- * insert 为 true 时（直接拖到时间轴）处理完成后放到时间轴上。返回实际导入的文件数。
+ * 返回实际导入的文件数，添加到时间轴由 insertAsset 完成。
  */
-export async function importMedia(files: Iterable<File>, { insert = false } = {}) {
+export async function importMedia(files: Iterable<File>) {
   const resources = useResourceState();
   const list = Array.from(files);
   const supported = list.flatMap(file => {
@@ -139,7 +139,6 @@ export async function importMedia(files: Iterable<File>, { insert = false } = {}
   await supported.reduce((done, { file, kind, task }) => done.then(async() => {
     try {
       const record = await importAsset(file, kind, task);
-      if (record && insert) await insertAsset(record);
     } finally {
       resources.pending = resources.pending.filter(({ key }) => key !== task.key);
     }
