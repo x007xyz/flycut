@@ -66,7 +66,7 @@
     playTimer.value?.cancel();
     playTimer.value = preciseInterval(() => {
       store.playStartFrame++;
-      if (store.playStartFrame === trackStore.frameCount) {
+      if (store.playStartFrame >= trackStore.frameCount) {
         pauseVideo();
       }
     }, timeStamp);
