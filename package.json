@@ -1,7 +1,7 @@
 {
   "name": "fly-cut",
   "version": "0.0.0",
-  "license": "Apache 2.0",
+  "license": "AGPL-3.0-only",
   "private": true,
   "packageManager": "pnpm@9.10.0",
   "homepage": "https://github.com/x007xyz/fly-cut.git",

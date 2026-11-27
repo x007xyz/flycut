@@ -17,3 +17,6 @@ FlyCut 会自动在当前浏览器中保存最近一次的时间轴和导入素�
 ## 参考
 - https://github.com/Vanilagy/mediabunny 基于 WebCodecs 在浏览器中读取、解码和编码音视频；用来处理音视频文件
 - https://github.com/Cc-Edit/CcClip 使用Vue3 + ffmpeg实现的Web剪辑工具，本项目主题功能基于本项目开发
+
+## 许可协议
+[AGPL-3.0](LICENSE)。源自 CcClip 的代码保留其 Apache-2.0 声明，见 [NOTICE](NOTICE)。
