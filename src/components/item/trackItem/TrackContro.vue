@@ -31,7 +31,6 @@
   import { usePageState } from '@/stores/pageState';
   import { useTrackState } from '@/stores/trackState';
   import { usePlayerState } from '@/stores/playerState';
-  import { getId } from '@/utils/common';
   import { ref, reactive, computed } from 'vue';
   const props = defineProps({
     modelValue: {
@@ -102,27 +101,13 @@
       return;
     }
     if (type === 'DeleteIcon') {
-      trackStore.flushHistory();
-      if (trackStore.selectTrackItem.line !== -1 && trackStore.selectTrackItem.index !== -1) {
-        trackStore.removeTrack(trackStore.selectTrackItem.line, trackStore.selectTrackItem.index);
-        trackStore.selectTrackItem.line = -1;
-        trackStore.selectTrackItem.index = -1;
-      }
+      trackStore.removeSelected();
     } else if (type === 'UndoIcon') {
       trackStore.undo();
     } else if (type === 'RedoIcon') {
       trackStore.redo();
     } else if (type === 'SplitIcon') {
-      trackStore.flushHistory();
-      // 判断分割时间是否在视频内
-      let splitTime = playerStore.playStartFrame;
-      let active = trackStore.trackList[trackStore.selectTrackItem.line].list[trackStore.selectTrackItem.index];
-
-      if (splitTime > active.start && splitTime < active.end && active.type === 'video') {
-        const videoTrack = active.split(splitTime);
-        videoTrack.resize({ width: playerStore.playerWidth, height: playerStore.playerHeight });
-        trackStore.addTrack(videoTrack, false);
-      }
+      trackStore.splitSelected(playerStore.playStartFrame, { width: playerStore.playerWidth, height: playerStore.playerHeight });
     }
   }
 </script>

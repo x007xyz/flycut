@@ -12,14 +12,14 @@
     <TrackContro
       v-model="store.trackScale"
     />
-    <TrackList />
+    <TimelinePanel />
   </div>
 </template>
 
 <script setup lang="ts">
   import SplitLine from '@/components/SplitLine.vue';
   import TrackContro from '@/components/item/trackItem/TrackContro.vue';
-  import TrackList from '@/components/TrackList.vue';
+  import TimelinePanel from '@/timeline/TimelinePanel.vue';
   import { useTrackState } from '@/stores/trackState';
   import { usePageState } from '@/stores/pageState';
   import { computed, reactive } from 'vue';

@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const fixture = path.resolve('e2e/fixtures/sample.mp4');
-const tracks = '.trackLine[data-type="video"]';
+const tracks = '.tk-track-row:has(.tk-track-clip[data-type="video"])';
 const draftKey = 'flycut.editorDraft';
-const textClip = '.trackItem[data-type="text"]';
+const textClip = '.tk-track-clip[data-type="text"]';
 
 function readDraft(page: Page): Promise<string | null> {
   return page.evaluate(key => localStorage.getItem(key), draftKey);
@@ -33,7 +33,7 @@ async function dropFile(page: Page, name = 'sample.mp4') {
     }));
     return transfer;
   }, { bytes, name });
-  const timeline = page.locator('.trackList > div').last();
+  const timeline = page.locator('.trackList');
   await timeline.dispatchEvent('dragover', { dataTransfer });
   await timeline.dispatchEvent('drop', { dataTransfer });
   await dataTransfer.dispose();
@@ -81,7 +81,7 @@ test.beforeEach(async({ page }) => openEditor(page));
 
 test('empty project offers MP4 drop and has no tracks', async({ page }) => {
   await expect(page.getByText('将 MP4 视频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
-  await expect(page.locator('.trackLine')).toHaveCount(0);
+  await expect(page.locator('.tk-track-row')).toHaveCount(0);
 });
 
 test('MP4 drop creates a video track and renders preview pixels', async({ page }) => {
@@ -100,7 +100,7 @@ test('local video file chooser creates a video track', async({ page }) => {
 test('non-MP4 drop warns without creating tracks', async({ page }) => {
   await dropFile(page, 'not-video.txt');
   await expect(page.getByText('请拖入 MP4 视频', { exact: true })).toBeVisible();
-  await expect(page.locator('.trackLine')).toHaveCount(0);
+  await expect(page.locator('.tk-track-row')).toHaveCount(0);
 });
 
 test('autosave restores split video, edited text and the playhead, then resumes playback', async({ page }) => {
@@ -117,17 +117,18 @@ test('autosave restores split video, edited text and the playhead, then resumes 
   await dropFile(page);
   await expectImported(page);
 
-  const video = page.locator('.trackItem[data-type="video"]');
-  const ruler = page.locator('.trackList canvas');
+  const video = page.locator('.tk-track-clip[data-type="video"]');
+  const ruler = page.locator('.tk-ruler-canvas');
   const toolbarActions = page.locator('.trackList').locator('..')
 .locator('.float-left > div');
-  await ruler.click({ position: { x: 29, y: 10 }});
+  await ruler.click({ position: { x: 27, y: 10 }});
   await video.click({ position: { x: 12, y: 14 }});
   await toolbarActions.nth(2).click();
   await expect(video).toHaveCount(2);
 
   await addText(page, 'Draft subtitle');
-  await page.getByRole('slider').last()
+  await page.locator('.el-slider').getByRole('slider')
+.last()
 .press('ArrowRight');
   await expect.poll(() => readDraft(page)).toContain('Draft subtitle');
   const saved = JSON.parse(await readDraft(page) ?? '');
@@ -143,7 +144,8 @@ test('autosave restores split video, edited text and the playhead, then resumes 
   await expect(video).toHaveCount(2);
   await expectImported(page);
   await expect(page.getByText('00:00:00:06', { exact: true })).toBeVisible();
-  await expect(page.getByRole('slider').last()).toHaveAttribute('aria-valuenow', '70');
+  await expect(page.locator('.el-slider').getByRole('slider')
+.last()).toHaveAttribute('aria-valuenow', '70');
   await page.locator(textClip).click({ position: { x: 12, y: 14 }});
   await expect(page.getByPlaceholder('请输入内容')).toHaveValue('Draft subtitle');
 
@@ -157,12 +159,36 @@ test('autosave restores split video, edited text and the playhead, then resumes 
   await expect.poll(() => readDraft(page)).toContain('Continued after reload');
 });
 
+test('timeline trim updates the source range and undo restores it', async({ page }) => {
+  await dropFile(page);
+  await expectImported(page);
+  const video = page.locator('.tk-track-clip[data-type="video"]');
+  const offsetL = async() => JSON.parse(await readDraft(page) ?? '{}').lines
+    ?.find((line: { type: string }) => line.type === 'video')?.tracks[0]?.trim.offsetL;
+  await video.click({ position: { x: 12, y: 14 }});
+  const handle = await video.locator('.tk-track-clip-handle').first()
+    .boundingBox();
+  if (!handle) throw new Error('trim handle not visible');
+  const y = handle.y + handle.height / 2;
+  await page.mouse.move(handle.x + handle.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + handle.width / 2 + 40, y, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(offsetL).toBeGreaterThan(0);
+
+  await page.locator('.trackList').locator('..')
+    .locator('.float-left > div')
+    .first()
+    .click();
+  await expect.poll(offsetL).toBe(0);
+});
+
 test('deleting the last clip stays deleted after an immediate reload', async({ page }) => {
   await addText(page, 'Do not resurrect');
   await expect.poll(() => readDraft(page)).toContain('Do not resurrect');
   await removeClip(page, textClip);
   await page.reload();
-  await expect(page.locator('.trackItem')).toHaveCount(0);
+  await expect(page.locator('.tk-track-clip')).toHaveCount(0);
   await expect(page.getByText('将 MP4 视频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
   expect(JSON.parse(await readDraft(page) ?? '').lines).toEqual([]);
 });
@@ -198,7 +224,8 @@ test('missing cached media preserves the original draft until the timeline chang
   await expect(page.locator(tracks)).toHaveCount(0);
   await page.locator(textClip).click({ position: { x: 12, y: 14 }});
   await expect(page.getByPlaceholder('请输入内容')).toHaveValue('Still here');
-  const timelineZoom = page.getByRole('slider').last();
+  const timelineZoom = page.locator('.el-slider').getByRole('slider')
+.last();
   await timelineZoom.press('ArrowRight');
   await expect(timelineZoom).toHaveAttribute('aria-valuenow', '70');
   await page.reload();
@@ -213,7 +240,7 @@ test('an invalid draft leaves a usable editor without overwriting the original',
   await page.evaluate(({ key, draft }) => localStorage.setItem(key, draft), { key: draftKey, draft: invalid });
   await page.reload();
   await expect(page.getByRole('alert')).toContainText('无法读取本地草稿');
-  await expect(page.locator('.trackItem')).toHaveCount(0);
+  await expect(page.locator('.tk-track-clip')).toHaveCount(0);
   expect(await readDraft(page)).toBe(invalid);
   await addText(page, 'Fresh draft');
   await expect.poll(() => readDraft(page)).toContain('Fresh draft');
@@ -250,7 +277,7 @@ test('video with a text overlay checks the MP4 output encoder settings', async({
   await expectImported(page);
   await page.getByText('文字', { exact: true }).click();
   await page.getByText('添加文字', { exact: true }).click();
-  await expect(page.locator('.trackLine[data-type="text"]')).toHaveCount(1);
+  await expect(page.locator('.tk-track-row:has(.tk-track-clip[data-type="text"])')).toHaveCount(1);
 
   await page.getByRole('button', { name: '合成视频' }).click();
   await expect(page.getByText('当前浏览器不支持 MP4 所需的 H.264 或 Opus 编码，请更换浏览器后重试')).toBeVisible();
