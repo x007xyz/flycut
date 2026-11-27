@@ -422,6 +422,14 @@ test('exported MP4 keeps the position the video was dragged to', async({ page })
   await page.mouse.down();
   await page.mouse.move(before.x + before.width, before.y + before.height / 2, { steps: 8 });
   await page.mouse.up();
+  const handle = page.locator('.cc-move .moveable-control.moveable-ne');
+  const corner = await handle.boundingBox();
+  const player = await page.locator('#player').boundingBox();
+  if (!corner || !player) throw new Error('resize handle not rendered');
+  expect(corner.x).toBeGreaterThan(player.x + player.width);
+  // 拖出画布的元素其缩放控制点不被画布裁剪
+  expect(await handle.evaluate((element, [x, y]) => document.elementFromPoint(x, y) === element,
+    [corner.x + corner.width / 2, corner.y + corner.height / 2])).toBe(true);
   const name = 'dragged.mp4';
   await saveToOpfs(page, name);
   const columns = await page.evaluate(async filename => {
