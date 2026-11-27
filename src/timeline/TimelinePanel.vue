@@ -56,7 +56,7 @@
   watch([editor, () => store.selectResource?.id], ([instance, id]) => {
     if (!instance || (instance.getSnapshot().selection.clipId ?? undefined) === id) return;
     instance.setSelection(id ?? null);
-  });
+  }, { flush: 'post' });
 
   // 分割、删除、撤销由 flycut 的 trackState 处理，时间轴只负责移动和裁剪
   const delegated: Record<string, () => void> = {
