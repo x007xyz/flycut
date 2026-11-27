@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
   import { TimelineEditor } from '@flycut/timeline-kit/vue';
-  import type { BeforeCommandHook, NativeTimelineEditor, TimelineEditorSnapshot } from '@flycut/timeline-kit';
+  import type { BeforeCommandHook, NativeTimelineEditor, TimelineCommand, TimelineEditorSnapshot } from '@flycut/timeline-kit';
   import VideoIcon from '@/components/icons/VideoIcon.vue';
   import { useTrackState } from '@/stores/trackState';
   import { usePlayerState } from '@/stores/playerState';
@@ -59,16 +59,16 @@
   }, { flush: 'post' });
 
   // 分割、删除、撤销由 flycut 的 trackState 处理，时间轴只负责移动和裁剪
-  const delegated: Record<string, () => void> = {
+  const delegated: Record<string, (command: TimelineCommand<{ clipIds?: string[] }>) => void> = {
     'clip:split': () => store.splitSelected(playerStore.playStartFrame, { width: playerStore.playerWidth, height: playerStore.playerHeight }),
-    'clip:delete': () => store.removeSelected(),
+    'clip:delete': ({ payload }) => store.removeTracks(payload?.clipIds ?? editor.value?.getSnapshot().selection.clipIds ?? []),
     'history:undo': () => store.undo(),
     'history:redo': () => store.redo()
   };
   const onBeforeCommand: BeforeCommandHook = command => {
     const run = delegated[command.type];
     if (!run) return undefined;
-    run();
+    run(command);
     return false;
   };
 

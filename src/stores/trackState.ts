@@ -153,6 +153,15 @@ export const useTrackState = defineStore('trackState', () => {
     selectTrackItem.line = -1;
     selectTrackItem.index = -1;
   }
+  function removeTracks(ids: readonly string[]) {
+    history.flushHistory();
+    ids.forEach(id => {
+      const line = trackList.findIndex(({ list }) => list.some(track => track.id === id));
+      if (line !== -1) removeTrack(line, trackList[line].list.findIndex(track => track.id === id));
+    });
+    selectTrackItem.line = -1;
+    selectTrackItem.index = -1;
+  }
   function splitSelected(frame: number, playerSize: { width: number, height: number }) {
     const active = selectResource.value;
     if (!active || active.type !== 'video' || frame <= active.start || frame >= active.end) return;
@@ -186,6 +195,7 @@ export const useTrackState = defineStore('trackState', () => {
     selectTrackById,
     removeTrack,
     removeSelected,
+    removeTracks,
     splitSelected,
     frameCount
   };
