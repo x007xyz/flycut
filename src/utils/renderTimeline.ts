@@ -5,7 +5,6 @@ import {
   Mp4OutputFormat,
   Output,
   StreamTarget,
-  type AudioBufferSink,
   type StreamTargetChunk,
   type VideoSample
 } from 'mediabunny';
@@ -46,7 +45,8 @@ export function sourceWindow({ start, end, offsetL }: { start: number, end: numb
   return { from, to: from + (end - start) / baseFps, offset: start / baseFps };
 }
 
-type AudioClip = ReturnType<typeof sourceWindow> & { sink: AudioBufferSink };
+type AudioBuffers = { buffers(from: number, to: number): AsyncIterable<{ buffer: AudioBuffer, timestamp: number }> };
+type AudioClip = ReturnType<typeof sourceWindow> & { sink: AudioBuffers };
 
 async function audioClips(tracks: Track[]) {
   const clips: AudioClip[] = [];

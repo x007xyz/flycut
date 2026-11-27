@@ -269,12 +269,41 @@ class ImageDecoder {
   }
 }
 
+// 浏览器能解码但 MediaBunny 不支持的音频（如 MP3 编码的 WAV）整段解码后使用
+class DecodedAudio {
+  readonly buffer: AudioBuffer;
+  readonly meta: MediaMeta;
+  constructor(buffer: AudioBuffer) {
+    this.buffer = buffer;
+    this.meta = { width: 0, height: 0, duration: buffer.duration };
+  }
+
+  static async open(blob: Blob) {
+    const context = new OfflineAudioContext(1, 1, 48000);
+    return new DecodedAudio(await context.decodeAudioData(await blob.arrayBuffer()));
+  }
+
+  get audioSink() {
+    const { buffer } = this;
+    return {
+      async *buffers(_from?: number, _to?: number) {
+        yield { buffer, timestamp: 0 };
+      }
+    };
+  }
+}
+
+const audioCache = new AssetCache(async blob => {
+  const asset = await MediaAsset.open(blob).catch(() => null);
+  if (asset?.audioTrack) return asset;
+  return DecodedAudio.open(blob).catch(() => {
+    throw new Error('Media has no audio track');
+  });
+});
+
 class AudioDecoder {
   decode(options: DecodeOptions) {
-    return mediaCache.get(options).then(asset => {
-      if (!asset.audioTrack) throw new Error('Media has no audio track');
-      return asset;
-    });
+    return audioCache.get(options);
   }
 }
 
