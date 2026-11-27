@@ -35,16 +35,18 @@ export function safeName(name: string) {
 }
 
 let colorContext: OffscreenCanvasRenderingContext2D | undefined;
-const invalidColor = '#010203';
 
 /** 借助 Canvas 把任意 CSS 颜色规范成 #rrggbb 或 rgba()，再转成剪映的 0-1 RGB */
 function color(value: string | undefined, fallback: number[]) {
   if (!value) return fallback;
   colorContext ??= new OffscreenCanvas(1, 1).getContext('2d') as OffscreenCanvasRenderingContext2D;
-  colorContext.fillStyle = invalidColor;
+  // 无效颜色不会改变 fillStyle：从两个不同的初值出发结果不一致时说明颜色无效
+  colorContext.fillStyle = '#000000';
   colorContext.fillStyle = value;
   const normalized = String(colorContext.fillStyle);
-  if (normalized === invalidColor && value.toLowerCase() !== invalidColor) return fallback;
+  colorContext.fillStyle = '#ffffff';
+  colorContext.fillStyle = value;
+  if (String(colorContext.fillStyle) !== normalized) return fallback;
   const hex = normalized.match(/^#([\da-f]{6})$/i)?.[1];
   const channels = hex ? [0, 2, 4].map(index => parseInt(hex.slice(index, index + 2), 16)) : normalized.match(/[\d.]+/g)?.slice(0, 3)
 .map(Number);
