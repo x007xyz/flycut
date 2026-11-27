@@ -44,8 +44,10 @@ export function applyDocument(lines: TrackLineItem[], document: TimelineDocument
     list: clips.flatMap(clip => {
       const track = tracks.get(clip.id);
       if (!track) return [];
+      const length = track.end - track.start;
+      const moved = Math.abs(clip.endMs - clip.startMs - frameMs(length)) < 1;
       track.start = msFrame(clip.startMs);
-      track.end = track.start + Math.max(1, msFrame(clip.endMs - clip.startMs));
+      track.end = moved ? track.start + length : Math.max(track.start + 1, msFrame(clip.endMs));
       if (trimmable(track) && clip.trim) {
         track.offsetL = msFrame(clip.trim.startMs);
         track.offsetR = Math.max(0, track.frameCount - track.offsetL - (track.end - track.start));
