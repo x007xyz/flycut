@@ -65,9 +65,13 @@ function canvasToBlob(canvas: HTMLCanvasElement | OffscreenCanvas) {
   });
 }
 
+const playbackLookahead = 1;
+
 export class MediaAsset {
   #videoSink?: VideoSampleSink;
   #audioSink?: AudioBufferSink;
+  #playback: { iterator: AsyncGenerator<VideoSample, void>, current: VideoSample | null, next: VideoSample | null } | null = null;
+  #queue: Promise<unknown> = Promise.resolve();
   readonly input: Input;
   readonly videoTrack: InputVideoTrack | null;
   readonly audioTrack: InputAudioTrack | null;
@@ -112,8 +116,37 @@ export class MediaAsset {
     return Math.min(Math.max(time, this.firstTimestamp), Math.max(this.meta.duration - 1e-3, this.firstTimestamp));
   }
 
+  // Preview mostly moves forward, so keep one decoder running instead of decoding from a keyframe per frame.
   getSample(time: number): Promise<VideoSample | null> {
-    return this.videoSink.getSample(this.sampleTime(time));
+    const sample = this.#queue.then(() => this.#sampleAt(this.sampleTime(time)));
+    this.#queue = sample.catch(() => {});
+    return sample;
+  }
+
+  async #sampleAt(time: number) {
+    const current = this.#playback?.current;
+    const playback = this.#playback && current && time >= current.timestamp && time - current.timestamp <= playbackLookahead
+      ? this.#playback
+      : await this.#seek(time);
+    while (playback.next && playback.next.timestamp <= time) {
+      playback.current?.close();
+      playback.current = playback.next;
+      playback.next = (await playback.iterator.next()).value ?? null;
+    }
+    return playback.current?.clone() ?? null;
+  }
+
+  async #seek(time: number) {
+    if (this.#playback) {
+      this.#playback.current?.close();
+      this.#playback.next?.close();
+      await this.#playback.iterator.return();
+    }
+    const iterator = this.videoSink.samples(time);
+    const current = (await iterator.next()).value ?? null;
+    const next = (await iterator.next()).value ?? null;
+    this.#playback = { iterator, current, next };
+    return this.#playback;
   }
 
   async thumbnails(width: number, step = 1) {
@@ -236,12 +269,41 @@ class ImageDecoder {
   }
 }
 
+// 浏览器能解码但 MediaBunny 不支持的音频（如 MP3 编码的 WAV）整段解码后使用
+class DecodedAudio {
+  readonly buffer: AudioBuffer;
+  readonly meta: MediaMeta;
+  constructor(buffer: AudioBuffer) {
+    this.buffer = buffer;
+    this.meta = { width: 0, height: 0, duration: buffer.duration };
+  }
+
+  static async open(blob: Blob) {
+    const context = new OfflineAudioContext(1, 1, 48000);
+    return new DecodedAudio(await context.decodeAudioData(await blob.arrayBuffer()));
+  }
+
+  get audioSink() {
+    const { buffer } = this;
+    return {
+      async *buffers(_from?: number, _to?: number) {
+        yield { buffer, timestamp: 0 };
+      }
+    };
+  }
+}
+
+const audioCache = new AssetCache(async blob => {
+  const asset = await MediaAsset.open(blob).catch(() => null);
+  if (asset?.audioTrack) return asset;
+  return DecodedAudio.open(blob).catch(() => {
+    throw new Error('Media has no audio track');
+  });
+});
+
 class AudioDecoder {
   decode(options: DecodeOptions) {
-    return mediaCache.get(options).then(asset => {
-      if (!asset.audioTrack) throw new Error('Media has no audio track');
-      return asset;
-    });
+    return audioCache.get(options);
   }
 }
 

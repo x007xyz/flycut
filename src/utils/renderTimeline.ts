@@ -13,7 +13,7 @@ import { VideoTrack } from '@/class/VideoTrack';
 import { baseFps } from '@/data/trackConfig';
 import { buildScene, type Size, type Track } from '@/render/scene';
 import { drawFrame, loadFrameSources, type FrameLoader } from '@/render/drawFrame';
-import { audioDecoder, imageDecoder, videoDecoder } from './webcodecs';
+import { audioDecoder, imageDecoder, videoDecoder, type MediaAsset } from './webcodecs';
 
 export type { Track };
 
@@ -44,40 +44,48 @@ export function sourceWindow({ start, end, offsetL }: { start: number, end: numb
   return { from, to: from + (end - start) / baseFps, offset: start / baseFps };
 }
 
-async function mixAudio(tracks: Track[], duration: number) {
-  const { numberOfChannels, sampleRate } = exportOptions;
-  const context = new OfflineAudioContext(numberOfChannels, Math.max(1, Math.ceil(duration * sampleRate)), sampleRate);
+type AudioBuffers = { buffers(from: number, to: number): AsyncIterable<{ buffer: AudioBuffer, timestamp: number }> };
+type AudioClip = ReturnType<typeof sourceWindow> & { sink: AudioBuffers };
+
+async function audioClips(tracks: Track[]) {
+  const clips: AudioClip[] = [];
   for (const track of tracks) {
     if (!(track instanceof AudioTrack || track instanceof VideoTrack) || (track as { silent?: boolean }).silent) continue;
     const asset = track instanceof AudioTrack
       ? await audioDecoder.decode({ id: track.source.id })
       : await videoDecoder.decode({ id: track.source.id });
-    const sink = asset.audioSink;
-    if (!sink) continue;
-    const { from, to, offset } = sourceWindow(track);
-    for await (const { buffer, timestamp } of sink.buffers(from, to)) {
-      const skip = Math.max(0, from - timestamp);
-      const length = Math.min(buffer.duration - skip, to - Math.max(timestamp, from));
+    if (asset.audioSink) clips.push({ ...sourceWindow(track), sink: asset.audioSink });
+  }
+  return clips;
+}
+
+// 按时间窗口混音，避免长时间轴一次性分配整段未压缩音频
+const audioWindow = 10;
+
+async function mixAudio(clips: AudioClip[], start: number, end: number) {
+  const { numberOfChannels, sampleRate } = exportOptions;
+  const context = new OfflineAudioContext(numberOfChannels, Math.max(1, Math.round((end - start) * sampleRate)), sampleRate);
+  for (const { sink, from, to, offset } of clips) {
+    const clipStart = Math.max(start, offset);
+    const clipEnd = Math.min(end, offset + to - from);
+    if (clipEnd <= clipStart) continue;
+    const sourceFrom = from + clipStart - offset;
+    const sourceTo = from + clipEnd - offset;
+    for await (const { buffer, timestamp } of sink.buffers(sourceFrom, sourceTo)) {
+      const skip = Math.max(0, sourceFrom - timestamp);
+      const length = Math.min(buffer.duration - skip, sourceTo - Math.max(timestamp, sourceFrom));
       if (length <= 0) continue;
       const node = context.createBufferSource();
       node.buffer = buffer;
       node.connect(context.destination);
-      node.start(offset + Math.max(0, timestamp - from), skip, length);
+      node.start(clipStart - start + Math.max(0, timestamp - sourceFrom), skip, length);
     }
   }
   return context.startRendering();
 }
 
-function sliceAudio(buffer: AudioBuffer, from: number, to: number) {
-  const slice = new AudioBuffer({ length: to - from, numberOfChannels: buffer.numberOfChannels, sampleRate: buffer.sampleRate });
-  for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-    slice.copyToChannel(buffer.getChannelData(channel).subarray(from, to), channel);
-  }
-  return slice;
-}
-
-async function *videoTimes(track: VideoTrack) {
-  for (let frame = track.start; frame < track.end; frame++) yield track.sourceTime(frame);
+async function *videoTimes(track: VideoTrack, asset: MediaAsset) {
+  for (let frame = track.start; frame < track.end; frame++) yield asset.sampleTime(track.sourceTime(frame));
 }
 
 export async function renderTimeline(tracks: Track[], playerSize: Size, writable: WritableStream<StreamTargetChunk>) {
@@ -101,18 +109,21 @@ export async function renderTimeline(tracks: Track[], playerSize: Size, writable
     let iterator = samples.get(layer.clipId);
     if (!iterator) {
       const asset = await videoDecoder.decode({ id: layer.sourceId });
-      iterator = asset.videoSink.samplesAtTimestamps(videoTimes(clips.get(layer.clipId) as VideoTrack));
+      iterator = asset.videoSink.samplesAtTimestamps(videoTimes(clips.get(layer.clipId) as VideoTrack, asset));
       samples.set(layer.clipId, iterator);
     }
     return (await iterator.next()).value ?? null;
   };
   try {
-    const audio = await mixAudio(tracks, frameCount / fps);
+    const audioSources = await audioClips(tracks);
     await output.start();
 
     const ratio = width / playerSize.width;
-    let audioWritten = 0;
+    const framesPerWindow = audioWindow * fps;
     for (let frame = 0; frame < frameCount; frame++) {
+      if (frame % framesPerWindow === 0) {
+        await audioSource.add(await mixAudio(audioSources, frame / fps, Math.min(frame + framesPerWindow, frameCount) / fps));
+      }
       const scene = buildScene(tracks, frame, playerSize);
       const sources = await loadFrameSources(scene, load);
       try {
@@ -126,12 +137,6 @@ export async function renderTimeline(tracks: Track[], playerSize: Size, writable
           samples.delete(clipId);
           await iterator.return(undefined);
         }
-      }
-
-      const audioEnd = frame === frameCount - 1 ? audio.length : Math.min(audio.length, Math.round((frame + 1) / fps * audio.sampleRate));
-      if (audioEnd - audioWritten >= audio.sampleRate || (audioEnd > audioWritten && frame === frameCount - 1)) {
-        await audioSource.add(sliceAudio(audio, audioWritten, audioEnd));
-        audioWritten = audioEnd;
       }
     }
     await output.finalize();
