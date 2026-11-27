@@ -3,10 +3,10 @@ import { speechWindows } from './windows';
 
 const rate = 1000;
 
-function audioOf(seconds: number, speech: [number, number][]) {
+function audioOf(seconds: number, speech: [number, number, number?][]) {
   const audio = new Float32Array(seconds * rate);
-  for (const [start, end] of speech) {
-    for (let index = start * rate; index < end * rate; index++) audio[index] = Math.sin(index) * 0.5;
+  for (const [start, end, gain = 0.5] of speech) {
+    for (let index = start * rate; index < end * rate; index++) audio[index] = Math.sin(index) * gain;
   }
   return audio;
 }
@@ -33,6 +33,13 @@ describe('speechWindows', () => {
     expect(windows.length).toBeGreaterThan(2);
     windows.forEach(({ start, end }) => expect(end - start).toBeLessThanOrEqual(28));
     expect(windows[windows.length - 1].end).toBe(70);
+  });
+
+  it('keeps quiet speech next to loud speech', () => {
+    const windows = speechWindows(audioOf(60, [[0, 10, 0.8], [40, 50, 0.02]]), rate);
+    expect(windows).toHaveLength(2);
+    expect(windows[1].start).toBeCloseTo(39.8, 1);
+    expect(windows[1].end).toBeCloseTo(50.2, 1);
   });
 
   it('returns nothing for silence', () => {

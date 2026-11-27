@@ -33,9 +33,10 @@ export function speechWindows(audio: Float32Array, rate: number): SpeechWindow[]
     for (let sample = index * frame; sample < end; sample++) sum += audio[sample] * audio[sample];
     levels[index] = Math.sqrt(sum / (end - index * frame));
   }
+  // 阈值只取决于底噪、且不超过约 -46 dBFS，音量较小的说话人不会被当成静音
   const sorted = Float32Array.from(levels).sort();
-  const loud = sorted[Math.floor(sorted.length * 0.95)] ?? 0;
-  const threshold = Math.max(0.005, loud * 0.08);
+  const floor = sorted[Math.floor(sorted.length * 0.1)] ?? 0;
+  const threshold = Math.min(0.005, Math.max(0.001, floor * 2));
 
   const regions: SpeechWindow[] = [];
   levels.forEach((level, index) => {
