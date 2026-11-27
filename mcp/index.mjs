@@ -73,7 +73,7 @@ wss.on('connection', socket => {
   });
 });
 
-function forward(name, args) {
+function send(name, args) {
   if (!editor || editor.readyState !== editor.OPEN) {
     return Promise.reject(new Error('No FlyCut editor is connected. Open FlyCut in the browser and turn on "本地 MCP 服务" in the AI menu.'));
   }
@@ -82,11 +82,20 @@ function forward(name, args) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       pending.delete(id);
-      reject(new Error(`${name} timed out`));
+      reject(new Error(`${name} timed out; the editor may still finish it, call get_timeline before retrying`));
     }, timeout);
     pending.set(id, { resolve, reject, timer });
     editor.send(JSON.stringify({ id, name, args }));
   });
+}
+
+let chain = Promise.resolve();
+
+// 命令逐个发给编辑器，超时只计算编辑器实际执行的时间，排队中的命令不会超时后又被执行
+function forward(name, args) {
+  const run = chain.then(() => send(name, args));
+  chain = run.catch(() => {});
+  return run;
 }
 
 async function importFile(filePath) {
