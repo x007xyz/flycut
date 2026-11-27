@@ -81,6 +81,7 @@ export class VideoTrack implements BaseTractItem {
     this.width = this.source.width * scale;
     this.height = this.source.height * scale;
   }
+  silent = false;
   audio: HTMLAudioElement | null = null;
   play(currentFrame: number) {
     if (!this.audio) {

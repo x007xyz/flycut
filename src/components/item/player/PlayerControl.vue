@@ -41,7 +41,7 @@
   function syncAudio() {
     const frame = store.playStartFrame;
     const nextTracks = new Set(getCurrentTrackItemList(trackStore.trackList, frame, isOfCanPlayType)
-      .filter(item => frame < item.end));
+      .filter(item => frame < item.end && !item.silent));
     playingTracks.forEach(item => {
       if (!nextTracks.has(item)) item.pause();
     });

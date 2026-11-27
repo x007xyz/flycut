@@ -188,6 +188,36 @@ test('autosave restores split video, edited text and the playhead, then resumes 
   await expect.poll(() => readDraft(page)).toContain('Continued after reload');
 });
 
+test('muted video does not play its audio in the preview', async({ page }) => {
+  await page.evaluate(() => {
+    const NativeAudio = window.Audio;
+    (window as any).playingCount = 0;
+    window.Audio = function(src?: string) {
+      const audio = new NativeAudio(src);
+      audio.addEventListener('playing', () => (window as any).playingCount++);
+      return audio;
+    } as typeof Audio;
+  });
+  await dropFile(page);
+  await expectImported(page);
+  await page.locator('.move-target[data-kind="video"]').click();
+  const mute = page.locator('.formItem', { hasText: '静音' }).locator('.el-switch');
+  await mute.click();
+  await expect(mute).toHaveClass(/is-checked/);
+  const playControl = page.locator('#player').locator('../..')
+    .locator('.el-icon > svg:visible');
+  await playControl.click();
+  // 示例视频只有 0.5 秒，等待播放结束
+  await page.waitForTimeout(1000);
+  expect(await page.evaluate(() => (window as any).playingCount)).toBe(0);
+
+  await page.locator('.move-target[data-kind="video"]').click();
+  await mute.click();
+  await expect(mute).not.toHaveClass(/is-checked/);
+  await playControl.click();
+  await expect.poll(() => page.evaluate(() => (window as any).playingCount)).toBeGreaterThan(0);
+});
+
 test('timeline trim updates the source range and undo restores it', async({ page }) => {
   await dropFile(page);
   await expectImported(page);

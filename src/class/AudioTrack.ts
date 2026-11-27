@@ -1,5 +1,6 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
+import { baseFps } from '@/data/trackConfig';
 
 export interface AudioSource {
   id: string,
@@ -20,6 +21,7 @@ export class AudioTrack implements BaseTractItem {
   end: number;
   offsetL: number;
   offsetR: number;
+  silent = false;
   constructor(source: AudioSource, curFrame: number) {
     // 设置ID
     this.id = uniqueId();
@@ -45,7 +47,7 @@ export class AudioTrack implements BaseTractItem {
       this.audio = new Audio(this.source.url);
     }
     if (this.audio?.paused) {
-      this.audio.currentTime = (currentFrame - this.start - this.offsetL) / 30;
+      this.audio.currentTime = (currentFrame - this.start + this.offsetL) / baseFps;
       this.audio.play();
     }
   }
