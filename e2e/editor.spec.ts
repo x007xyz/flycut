@@ -796,3 +796,65 @@ test('projects can be created and switched, and cleanup keeps assets used by any
   await expect(page.locator('.media-card')).toHaveCount(0);
   expect(await opfsEntries(page, 'flycut', 'assets')).toEqual([]);
 });
+
+async function exportedBrightness(page: Page, filename: string, times: number[]) {
+  return page.evaluate(async([name, seconds]) => {
+    const directory = await navigator.storage.getDirectory();
+    const file = await (await directory.getFileHandle(name as string)).getFile();
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.muted = true;
+    try {
+      video.src = url;
+      await new Promise((resolve, reject) => {
+        video.onloadeddata = resolve;
+        video.onerror = reject;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = 108;
+      canvas.height = 192;
+      const ctx = canvas.getContext('2d')!;
+      const result: number[] = [];
+      for (const time of seconds as number[]) {
+        video.currentTime = time;
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(resolve => { video.onseeked = resolve; });
+        ctx.drawImage(video, 0, 0, 108, 192);
+        const pixels = ctx.getImageData(0, 0, 108, 192).data;
+        let max = 0;
+        for (let i = 0; i < pixels.length; i += 4) max = Math.max(max, pixels[i], pixels[i + 1], pixels[i + 2]);
+        result.push(max);
+      }
+      return result;
+    } finally {
+      video.removeAttribute('src');
+      video.load();
+      URL.revokeObjectURL(url);
+    }
+  }, [filename, times] as const);
+}
+
+test('a fade-in animation shows in the DOM preview, persists and is drawn into the exported MP4', async({ page }) => {
+  await addMedia(page);
+  await expectImported(page);
+  await page.locator('.tk-track-clip[data-type="video"]').click({ position: { x: 12, y: 14 }});
+  await page.getByRole('tab', { name: '动画' }).click();
+  await page.locator('.el-collapse-item__header', { hasText: '入场' }).click();
+  const entrance = page.locator('.el-collapse-item', { hasText: '入场' });
+  await entrance.locator('.el-select').first()
+    .click();
+  await page.locator('.el-select-dropdown__item:visible', { hasText: '淡入' }).click();
+
+  const picture = page.locator('.move-target[data-kind="video"] canvas');
+  await expect(picture).toHaveCSS('opacity', '0');
+  await page.locator('.tk-ruler-canvas').click({ position: { x: 27, y: 10 }});
+  await expect.poll(async() => Number(await picture.evaluate(element => getComputedStyle(element).opacity)))
+    .toBeGreaterThan(0);
+  await expect.poll(async() => videoClips(await readDraft(page))?.[0]?.an).toEqual({ i: ['fade'] });
+
+  const name = 'faded.mp4';
+  await saveToOpfs(page, name);
+  const [start, end] = await exportedBrightness(page, name, [0.01, 0.45]);
+  expect(start).toBeLessThan(20);
+  expect(end).toBeGreaterThan(50);
+});

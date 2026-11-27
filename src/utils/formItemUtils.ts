@@ -58,6 +58,10 @@ const BaseOptionConfig: Record<string, any> = {
         component: FormItem,
         dataType: 'RadioButtonItem'
     },
+    Select: {
+        component: FormItem,
+        dataType: 'Select'
+    },
     Boolean: {
         component: FormItem,
         dataType: 'Boolean'

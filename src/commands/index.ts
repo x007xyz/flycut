@@ -1,4 +1,5 @@
 import { toRaw } from 'vue';
+import { activeAnimations, isPreset, type AnimationKind } from '@/render/animation';
 import { ElLoading } from 'element-plus';
 import tools from './tools.json';
 import { baseFps } from '@/data/trackConfig';
@@ -29,6 +30,8 @@ interface JsonSchema {
   minLength?: number;
   minimum?: number;
   exclusiveMinimum?: number;
+  maximum?: number;
+  enum?: string[];
   description?: string;
 }
 
@@ -79,10 +82,12 @@ function check(schema: JsonSchema, value: unknown, at: string): string | null {
     if (typeof value !== 'number' || !Number.isFinite(value)) return `${at} must be a number`;
     if (schema.minimum !== undefined && value < schema.minimum) return `${at} must be >= ${schema.minimum}`;
     if (schema.exclusiveMinimum !== undefined && value <= schema.exclusiveMinimum) return `${at} must be > ${schema.exclusiveMinimum}`;
+    if (schema.maximum !== undefined && value > schema.maximum) return `${at} must be <= ${schema.maximum}`;
     return null;
   }
   if (schema.type === 'string') {
     if (typeof value !== 'string') return `${at} must be a string`;
+    if (schema.enum && !schema.enum.includes(value)) return `${at} must be one of ${schema.enum.map(item => JSON.stringify(item)).join(', ')}`;
     return value.length < (schema.minLength ?? 0) ? `${at} must not be empty` : null;
   }
   if (schema.type === 'boolean' && typeof value !== 'boolean') return `${at} must be a boolean`;
@@ -100,7 +105,11 @@ function describeClip(track: Track, line: number) {
   if (track.type === 'video' || track.type === 'audio') {
     Object.assign(clip, { trimStart: seconds(track.offsetL), trimEnd: seconds(track.offsetR), muted: Boolean(track.silent) });
   }
-  if (track.type !== 'audio') Object.assign(clip, { x: track.centerX, y: track.centerY, scale: track.scale });
+  if (track.type !== 'audio') {
+    Object.assign(clip, { x: track.centerX, y: track.centerY, scale: track.scale });
+    const animations = activeAnimations(track.animations);
+    if (animations) clip.animations = animations;
+  }
   if (track instanceof TextTrack) {
     Object.assign(clip, { content: track.content, fontSize: track.fontSize, fill: track.fill, stroke: track.stroke ?? null });
   }
@@ -231,6 +240,19 @@ const handlers: Record<string, (args: Args) => unknown> = {
       if (typeof fill === 'string') track.fill = fill;
       if (typeof stroke === 'string') track.stroke = stroke;
     }
+    return describeById(track.id);
+  },
+  set_animation({ clipId, kind, preset, duration, ease }) {
+    const { track } = findClip(clipId);
+    if (track.type === 'audio') throw new Error('Audio clips have no animations');
+    const type = kind as AnimationKind;
+    if (!isPreset(type, preset)) throw new Error(`${String(preset)} is not a ${type} animation preset`);
+    if (preset === 'typewriter' && track.type !== 'text') throw new Error('typewriter applies to text clips');
+    useTrackState().flushHistory();
+    const spec = track.animations[type];
+    spec.preset = preset as string;
+    if (typeof duration === 'number') spec.duration = duration;
+    if (typeof ease === 'string') spec.ease = ease;
     return describeById(track.id);
   },
   trim_clip({ clipId, trimStart, trimEnd }) {

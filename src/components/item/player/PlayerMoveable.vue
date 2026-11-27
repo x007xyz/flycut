@@ -32,7 +32,8 @@
             left: `${-item.pad}px`,
             top: `${-item.pad}px`,
             width: `${item.w + item.pad * 2}px`,
-            height: `${item.h + item.pad * 2}px`
+            height: `${item.h + item.pad * 2}px`,
+            ...motionStyle(item)
           }"
       />
     </div>
@@ -90,6 +91,17 @@
     scale: number;
     left: number;
     top: number;
+    motion?: Layer['motion'];
+  }
+  // 动画只作用在画面上，Moveable 拖拽的元素保持片段的基础位置；与导出的 drawFrame 变换一致
+  function motionStyle({ motion, scale, pad, w, h }: TargetItem) {
+    if (!motion) return {};
+    return {
+      opacity: motion.opacity,
+      filter: motion.blur > 0 ? `blur(${motion.blur / scale}px)` : undefined,
+      transformOrigin: `${pad + w / 2}px ${pad + h / 2}px`,
+      transform: `translate(${motion.x / scale}px, ${motion.y / scale}px) rotate(${motion.rotate}deg) scale(${motion.scale})`
+    };
   }
   // 预览即 DOM：每个可见图层是一个元素，画面绘制在元素内的 canvas 上，Moveable 直接拖拽该元素
   const scene = computed(() => {
@@ -127,7 +139,8 @@
         h: track.height,
         pad: bleedOf(layer) / scale,
         left: store.playerWidth / 2 - track.width / 2,
-        top: store.playerHeight / 2 - track.height / 2
+        top: store.playerHeight / 2 - track.height / 2,
+        motion: layer.motion
       }];
     });
   });
@@ -142,7 +155,8 @@
     if (store.ingLoadingCount !== 0) return;
     const current = toRaw(scene.value);
     const ratio = (window.devicePixelRatio || 1) * props.zoom;
-    const key = `${ratio}:${frameKey(current)}`;
+    // 动画变换由 CSS 完成，不需要重绘画面
+    const key = `${ratio}:${frameKey({ ...current, layers: current.layers.map(({ motion, ...layer }) => layer as Layer) })}`;
     if (key === painted.key) return;
     const id = ++renderId;
     const sources = await loadFrameSources(current);

@@ -36,6 +36,10 @@ Only pages listed in `FLYCUT_ALLOWED_ORIGINS` (default `http://localhost:4008,ht
 
 **WebMCP**: when the browser exposes `document.modelContext` (W3C WebMCP draft), the same commands are registered as page tools; they can be turned off in the "AI" menu.
 
+## Animations
+
+Video, image and text clips have entrance, exit and loop animations (属性 → 动画, or the MCP `set_animation` command): fade, slide, zoom, pop, blur, rotate, typewriter for text, and pulse, float, shake, flicker, spin loops. They are evaluated with paused [anime.js](https://animejs.com) timelines seeked to each frame, so the preview and the exported MP4 show the same motion.
+
 ## JianYing (剪映) draft export
 
-Project menu → 导出剪映草稿 downloads a zip containing a draft folder (`draft_content.json`, `draft_meta_info.json`, `materials/`). Enter JianYing's draft location (全局设置 → 草稿位置) when exporting and unzip the archive there so media paths resolve; otherwise relink media in JianYing. Video, image, audio and text clips keep their timing, trim, position, scale and mute state; text size is an approximate conversion. The draft is plain JSON, which JianYing 5.9 and newer versions open.
+Project menu → 导出剪映草稿 downloads a zip containing a draft folder (`draft_content.json`, `draft_meta_info.json`, `materials/`). Enter JianYing's draft location (全局设置 → 草稿位置) when exporting and unzip the archive there so media paths resolve; otherwise relink media in JianYing. Video, image, audio and text clips keep their timing, trim, position, scale and mute state; text size is an approximate conversion. Flycut animations are not exported, because JianYing animations use its own effect resource IDs; add them in JianYing. The draft is plain JSON, which JianYing 5.9 and newer versions open.

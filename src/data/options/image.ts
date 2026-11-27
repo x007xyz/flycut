@@ -1,4 +1,5 @@
 import { mappingFormItem } from '@/utils/formItemUtils';
+import { animationItems } from '@/data/animationItems';
 // 元素属性配置
 export const Options = {
     attributes: [
@@ -41,7 +42,7 @@ export const Options = {
                 }),
                 mappingFormItem('TabPane', {
                     name: '动画',
-                    children: []
+                    children: animationItems
                 })
             ]
         })

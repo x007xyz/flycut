@@ -9,6 +9,8 @@ import { useTrackState } from '@/stores/trackState';
 import FormItem from '@/components/item/formItem/FormItem.vue';
 
 vi.mock('element-plus/es/components/switch/style/css', () => ({}));
+vi.mock('element-plus/es/components/select/style/css', () => ({}));
+vi.mock('element-plus/es/components/option/style/css', () => ({}));
 vi.mock('element-plus/es/components/input/style/css', () => ({}));
 vi.mock('element-plus/es/components/input-number/style/css', () => ({}));
 vi.mock('element-plus/es/components/slider/style/css', () => ({}));

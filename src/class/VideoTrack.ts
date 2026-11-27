@@ -1,4 +1,5 @@
-import { uniqueId } from 'lodash-es';
+import { cloneDeep, uniqueId } from 'lodash-es';
+import { defaultAnimations, type ClipAnimations } from '@/render/animation';
 import type { BaseTractItem, TrackType } from './Base';
 import { baseFps } from '@/data/trackConfig';
 
@@ -16,6 +17,7 @@ export class VideoTrack implements BaseTractItem {
   id: string;
   type: TrackType = 'video';
   source: VideoSource;
+  animations: ClipAnimations = defaultAnimations();
   name: string;
   format: string;
   frameCount: number;
@@ -104,6 +106,9 @@ export class VideoTrack implements BaseTractItem {
     copy.offsetL = this.offsetL + cutFrame - this.start;
     copy.offsetR = this.offsetR;
     copy.silent = this.silent;
+    // 入场动画留在前半段，出场动画移到后半段
+    copy.animations = { ...cloneDeep(this.animations), in: defaultAnimations().in };
+    this.animations.out = defaultAnimations().out;
 
     this.offsetR += this.end - cutFrame;
     this.end = cutFrame;

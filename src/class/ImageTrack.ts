@@ -1,4 +1,5 @@
 import { uniqueId } from 'lodash-es';
+import { defaultAnimations, type ClipAnimations } from '@/render/animation';
 import type { BaseTractItem, TrackType } from './Base';
 
 export interface ImageSource {
@@ -20,6 +21,7 @@ export class ImageTrack implements BaseTractItem {
   id: string;
   type: TrackType = 'image';
   source: ImageSource;
+  animations: ClipAnimations = defaultAnimations();
   name: string;
   format: string;
   frameCount: number;
