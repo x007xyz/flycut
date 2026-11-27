@@ -101,13 +101,13 @@ export async function transcribeTimeline({ model = asrModels[0].id, language = d
   const device = await preferredDevice();
   let chunks: AsrChunk[];
   try {
-    chunks = await recognize({ audio: audio.slice(), model, device, language }, onProgress);
+    chunks = await recognize({ audio: audio.slice(), model, device, language, rate: asrRate }, onProgress);
   } catch (error) {
     if (device !== 'webgpu') throw error;
     // WebGPU 不可用或模型加载失败时回退 WASM
     worker?.terminate();
     worker = null;
-    chunks = await recognize({ audio, model, device: 'wasm', language }, onProgress);
+    chunks = await recognize({ audio, model, device: 'wasm', language, rate: asrRate }, onProgress);
   }
   return chunks.flatMap(({ timestamp: [start, end], text }) => {
     const content = text.trim();

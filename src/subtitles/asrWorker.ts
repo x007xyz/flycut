@@ -1,5 +1,6 @@
 /* eslint-disable camelcase -- transformers.js 的参数名 */
 import { env, pipeline } from '@huggingface/transformers';
+import { speechWindows } from './windows';
 
 // 模型从 Hugging Face 下载，缓存在浏览器 Cache API 中
 env.allowLocalModels = false;
@@ -11,6 +12,7 @@ export interface AsrRequest {
   model: string;
   device: AsrDevice;
   language: string;
+  rate: number;
 }
 
 export interface AsrChunk {
@@ -57,14 +59,23 @@ self.onmessage = async({ data }: MessageEvent<AsrRequest>) => {
   try {
     const asr = await load(data.model, data.device);
     post({ type: 'progress', stage: 'transcribe', progress: 0 });
-    const output = await asr(data.audio, {
-      return_timestamps: true,
-      chunk_length_s: 30,
-      stride_length_s: 5,
-      task: 'transcribe',
-      language: data.language
-    });
-    post({ type: 'result', chunks: output.chunks ?? [] });
+    const { audio, rate } = data;
+    const windows = speechWindows(audio, rate);
+    const chunks: AsrChunk[] = [];
+    for (const [index, { start, end }] of windows.entries()) {
+      // 逐个窗口识别，worker 内的模型一次只跑一个推理
+      // eslint-disable-next-line no-await-in-loop
+      const output = await asr(audio.subarray(Math.round(start * rate), Math.round(end * rate)), {
+        return_timestamps: true,
+        task: 'transcribe',
+        language: data.language
+      });
+      for (const { timestamp: [from, to], text } of output.chunks ?? []) {
+        chunks.push({ timestamp: [Math.min(start + from, end), Math.min(start + (to ?? end - start), end)], text });
+      }
+      post({ type: 'progress', stage: 'transcribe', progress: Math.round((index + 1) / windows.length * 100) });
+    }
+    post({ type: 'result', chunks });
   } catch (error) {
     loaded = null;
     post({ type: 'error', message: error instanceof Error ? error.message : String(error) });
