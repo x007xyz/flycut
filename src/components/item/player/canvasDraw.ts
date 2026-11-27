@@ -45,8 +45,12 @@ export class CanvasPlayer {
         const ctx = this.playerContext;
         if (this.playerStore.ingLoadingCount !== 0 || !ctx) return;
         const size = { width: this.playerStore.playerWidth, height: this.playerStore.playerHeight };
-        const tracks: Track[] = this.trackState.trackList.flatMap(({ list }: { list: Track[] }) => list.map(track => toRaw(track)));
-        const scene = buildScene(tracks, this.playerStore.playStartFrame, size, { includeEnd: true });
+        const frame = this.playerStore.playStartFrame;
+        // 同一行的剪切点处只显示后一个片段，与导出一致
+        const tracks: Track[] = this.trackState.trackList.flatMap(({ list }: { list: Track[] }) => list
+            .filter(track => track.end !== frame || !list.some(other => other.start === frame))
+            .map(track => toRaw(track)));
+        const scene = buildScene(tracks, frame, size, { includeEnd: true });
         const scale = window.devicePixelRatio || 1;
         const canvas = ctx.canvas;
         const width = Math.round(size.width * scale);
