@@ -5,7 +5,7 @@
       class="flex justify-center items-center h-24 m-auto w-2/3 dark:bg-gray-500 bg-gray-200 rounded-md text-sm border-dashed border-2 dark:border-gray-500 border-gray-200"
     >
       <VideoIcon class="text-xl mr-4" />
-      将 MP4 视频拖拽到这里，开始编辑你的大作吧~
+      将视频、图片或音频拖拽到这里，开始编辑你的大作吧~
     </div>
     <TimelineEditor
       v-else
@@ -37,8 +37,7 @@
   import { usePlayerState } from '@/stores/playerState';
   import { usePageState } from '@/stores/pageState';
   import { baseFps } from '@/data/trackConfig';
-  import { importVideo } from '@/utils/importVideo';
-  import { ElMessage } from 'element-plus';
+  import { importMedia } from '@/utils/importMedia';
   import { computed, shallowRef, watch } from 'vue';
   import type { TrackLineItem } from '@/class/Track';
   import { applyDocument, toDocument } from './document';
@@ -104,12 +103,7 @@
     if (!files?.length) return;
     event.preventDefault();
     event.stopPropagation();
-    const video = Array.from(files).find(file => file.type === 'video/mp4' || /\.mp4$/i.test(file.name));
-    if (!video) {
-      ElMessage.warning('请拖入 MP4 视频');
-      return;
-    }
-    await importVideo(video);
+    await importMedia(Array.from(files));
   }
 </script>
 

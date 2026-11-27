@@ -41,6 +41,7 @@ declare module '@vue/runtime-core' {
     ItemList: typeof import('./src/components/ItemList.vue')['default']
     Loading: typeof import('./src/components/Loading.vue')['default']
     LocalPanel: typeof import('./src/components/LocalPanel/index.vue')['default']
+    MediaPanel: typeof import('./src/components/MediaPanel/index.vue')['default']
     MenuList: typeof import('./src/components/MenuList.vue')['default']
     Player: typeof import('./src/components/item/player/Player.vue')['default']
     PlayerControl: typeof import('./src/components/item/player/PlayerControl.vue')['default']

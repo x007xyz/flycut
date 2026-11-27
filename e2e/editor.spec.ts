@@ -80,8 +80,8 @@ async function openEditor(page: Page) {
 
 test.beforeEach(async({ page }) => openEditor(page));
 
-test('empty project offers MP4 drop and has no tracks', async({ page }) => {
-  await expect(page.getByText('将 MP4 视频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
+test('empty project offers media drop and has no tracks', async({ page }) => {
+  await expect(page.getByText('将视频、图片或音频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
   await expect(page.locator('.tk-track-row')).toHaveCount(0);
 });
 
@@ -118,17 +118,54 @@ test('preview video is a DOM element that moves with the Moveable drag', async({
   await expect.poll(centerX).toBeGreaterThan(0);
 });
 
-test('local video file chooser creates a video track', async({ page }) => {
-  await page.getByText('视频', { exact: true }).click();
+test('resource file chooser creates a video track', async({ page }) => {
+  await page.locator('.tabsToggle').getByText('资源', { exact: true })
+    .click();
   const chooser = page.waitForEvent('filechooser');
-  await page.getByText('本地视频', { exact: true }).click();
+  await page.getByText('导入资源', { exact: true }).click();
   await (await chooser).setFiles(fixture);
   await expectImported(page);
 });
 
-test('non-MP4 drop warns without creating tracks', async({ page }) => {
+function wavFile(seconds: number) {
+  const rate = 8000;
+  const samples = rate * seconds;
+  const buffer = Buffer.alloc(44 + samples * 2);
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + samples * 2, 4);
+  buffer.write('WAVEfmt ', 8);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(rate, 24);
+  buffer.writeUInt32LE(rate * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(samples * 2, 40);
+  for (let i = 0; i < samples; i++) buffer.writeInt16LE(Math.round(Math.sin(i / rate * 2 * Math.PI * 440) * 8000), 44 + i * 2);
+  return buffer;
+}
+
+test('one resource chooser imports video, image and audio together', async({ page }) => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg==', 'base64');
+  await page.locator('.tabsToggle').getByText('资源', { exact: true })
+    .click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByText('导入资源', { exact: true }).click();
+  await (await chooser).setFiles([
+    { name: 'sample.mp4', mimeType: 'video/mp4', buffer: readFileSync(fixture) },
+    { name: 'dot.png', mimeType: 'image/png', buffer: png },
+    { name: 'tone.wav', mimeType: 'audio/wav', buffer: wavFile(1) }
+  ]);
+  await Promise.all(['video', 'image', 'audio']
+    .map(type => expect(page.locator(`.tk-track-clip[data-type="${type}"]`)).toHaveCount(1)));
+  await expect(page.locator('.move-target[data-kind="image"]')).toHaveCount(1);
+});
+
+test('unsupported drop warns without creating tracks', async({ page }) => {
   await dropFile(page, 'not-video.txt');
-  await expect(page.getByText('请拖入 MP4 视频', { exact: true })).toBeVisible();
+  await expect(page.getByText('请导入视频、图片或音频文件', { exact: true })).toBeVisible();
   await expect(page.locator('.tk-track-row')).toHaveCount(0);
 });
 
@@ -248,7 +285,7 @@ test('deleting the last clip stays deleted after an immediate reload', async({ p
   await removeClip(page, textClip);
   await page.reload();
   await expect(page.locator('.tk-track-clip')).toHaveCount(0);
-  await expect(page.getByText('将 MP4 视频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
+  await expect(page.getByText('将视频、图片或音频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
   expect(JSON.parse(await readDraft(page) ?? '').lines).toEqual([]);
 });
 
@@ -425,9 +462,10 @@ test('exported MP4 plays the source audio and can be edited again', async({ page
   const reopened = await browser.newPage({ baseURL });
   try {
     await openEditor(reopened);
-    await reopened.getByText('视频', { exact: true }).click();
+    await reopened.locator('.tabsToggle').getByText('资源', { exact: true })
+    .click();
     const chooser = reopened.waitForEvent('filechooser');
-    await reopened.getByText('本地视频', { exact: true }).click();
+    await reopened.getByText('导入资源', { exact: true }).click();
     await (await chooser).setFiles({ name, mimeType: 'video/mp4', buffer: Buffer.from(bytes) });
     await expectImported(reopened);
     await saveToOpfs(reopened, 're-export.mp4');
