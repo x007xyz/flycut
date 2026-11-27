@@ -89,6 +89,24 @@ test('MP4 drop creates a video track and renders preview pixels', async({ page }
   await expectImported(page);
 });
 
+test('preview video can be selected and dragged on the canvas', async({ page }) => {
+  await dropFile(page);
+  await expectImported(page);
+  const target = page.locator('.move-target');
+  await expect(target).toHaveCount(1);
+  const box = await target.boundingBox();
+  if (!box) throw new Error('move target not visible');
+  const centerX = async() => JSON.parse(await readDraft(page) ?? '{}').lines
+    ?.find((line: { type: string }) => line.type === 'video')
+    ?.tracks[0]?.placement.centerX;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator('.cc-move .moveable-control').first()).toBeVisible();
+  await expect.poll(centerX).toBeGreaterThan(0);
+});
+
 test('local video file chooser creates a video track', async({ page }) => {
   await page.getByText('视频', { exact: true }).click();
   const chooser = page.waitForEvent('filechooser');

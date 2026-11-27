@@ -81,7 +81,7 @@
 
     trackStore.trackList.forEach(({ list }, lineIndex) => {
       const index = list.findIndex((item: Record<string, any>, itemIndex) => {
-        if (store.playStartFrame >= item.start && store.playStartFrame <= item.end && item.draw) {
+        if (store.playStartFrame >= item.start && store.playStartFrame <= item.end && item.type !== 'audio') {
           return true;
         }
         return false;
