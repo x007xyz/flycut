@@ -58,6 +58,21 @@ function drawAnimated(ctx: Context, layer: Layer, image: Drawable | null, scale:
     return;
   }
   if (motion.opacity <= 0 || motion.scale <= 0) return;
+  // 文字的背景、描边和文字先合成再整体淡化，与预览中整块画布的 opacity 一致
+  if (layer.kind === 'text' && motion.opacity < 1 && typeof OffscreenCanvas !== 'undefined') {
+    const group = new OffscreenCanvas(ctx.canvas.width, ctx.canvas.height);
+    const groupCtx = group.getContext('2d');
+    if (groupCtx) {
+      groupCtx.setTransform(ctx.getTransform());
+      drawAnimated(groupCtx, { ...layer, motion: { ...motion, opacity: 1 }}, image, scale);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha *= motion.opacity;
+      ctx.drawImage(group, 0, 0);
+      ctx.restore();
+      return;
+    }
+  }
   const box = boxOf(ctx, layer);
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
