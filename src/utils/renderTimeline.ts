@@ -5,6 +5,7 @@ import {
   Mp4OutputFormat,
   Output,
   StreamTarget,
+  type AudioBufferSink,
   type StreamTargetChunk,
   type VideoSample
 } from 'mediabunny';
@@ -45,36 +46,43 @@ export function sourceWindow({ start, end, offsetL }: { start: number, end: numb
   return { from, to: from + (end - start) / baseFps, offset: start / baseFps };
 }
 
-async function mixAudio(tracks: Track[], duration: number) {
-  const { numberOfChannels, sampleRate } = exportOptions;
-  const context = new OfflineAudioContext(numberOfChannels, Math.max(1, Math.ceil(duration * sampleRate)), sampleRate);
+type AudioClip = ReturnType<typeof sourceWindow> & { sink: AudioBufferSink };
+
+async function audioClips(tracks: Track[]) {
+  const clips: AudioClip[] = [];
   for (const track of tracks) {
     if (!(track instanceof AudioTrack || track instanceof VideoTrack) || (track as { silent?: boolean }).silent) continue;
     const asset = track instanceof AudioTrack
       ? await audioDecoder.decode({ id: track.source.id })
       : await videoDecoder.decode({ id: track.source.id });
-    const sink = asset.audioSink;
-    if (!sink) continue;
-    const { from, to, offset } = sourceWindow(track);
-    for await (const { buffer, timestamp } of sink.buffers(from, to)) {
-      const skip = Math.max(0, from - timestamp);
-      const length = Math.min(buffer.duration - skip, to - Math.max(timestamp, from));
+    if (asset.audioSink) clips.push({ ...sourceWindow(track), sink: asset.audioSink });
+  }
+  return clips;
+}
+
+// 按时间窗口混音，避免长时间轴一次性分配整段未压缩音频
+const audioWindow = 10;
+
+async function mixAudio(clips: AudioClip[], start: number, end: number) {
+  const { numberOfChannels, sampleRate } = exportOptions;
+  const context = new OfflineAudioContext(numberOfChannels, Math.max(1, Math.round((end - start) * sampleRate)), sampleRate);
+  for (const { sink, from, to, offset } of clips) {
+    const clipStart = Math.max(start, offset);
+    const clipEnd = Math.min(end, offset + to - from);
+    if (clipEnd <= clipStart) continue;
+    const sourceFrom = from + clipStart - offset;
+    const sourceTo = from + clipEnd - offset;
+    for await (const { buffer, timestamp } of sink.buffers(sourceFrom, sourceTo)) {
+      const skip = Math.max(0, sourceFrom - timestamp);
+      const length = Math.min(buffer.duration - skip, sourceTo - Math.max(timestamp, sourceFrom));
       if (length <= 0) continue;
       const node = context.createBufferSource();
       node.buffer = buffer;
       node.connect(context.destination);
-      node.start(offset + Math.max(0, timestamp - from), skip, length);
+      node.start(clipStart - start + Math.max(0, timestamp - sourceFrom), skip, length);
     }
   }
   return context.startRendering();
-}
-
-function sliceAudio(buffer: AudioBuffer, from: number, to: number) {
-  const slice = new AudioBuffer({ length: to - from, numberOfChannels: buffer.numberOfChannels, sampleRate: buffer.sampleRate });
-  for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-    slice.copyToChannel(buffer.getChannelData(channel).subarray(from, to), channel);
-  }
-  return slice;
 }
 
 function paintBackground(ctx: OffscreenCanvasRenderingContext2D, width: number, height: number) {
@@ -101,7 +109,7 @@ export async function renderTimeline(tracks: Track[], playerSize: Size, writable
 
   const samples = new Map<VideoTrack, AsyncGenerator<VideoSample | null>>();
   try {
-    const audio = await mixAudio(tracks, frameCount / fps);
+    const clips = await audioClips(tracks);
     await output.start();
 
     // 越靠前的轨道层级越高，因此从后往前绘制
@@ -125,8 +133,11 @@ export async function renderTimeline(tracks: Track[], playerSize: Size, writable
       }
       if (frame === track.end - 1) await iterator.return(undefined);
     };
-    let audioWritten = 0;
+    const framesPerWindow = audioWindow * fps;
     for (let frame = 0; frame < frameCount; frame++) {
+      if (frame % framesPerWindow === 0) {
+        await audioSource.add(await mixAudio(clips, frame / fps, Math.min(frame + framesPerWindow, frameCount) / fps));
+      }
       ctx.save();
       paintBackground(ctx, width, height);
       ctx.scale(ratio, ratio);
@@ -135,12 +146,6 @@ export async function renderTimeline(tracks: Track[], playerSize: Size, writable
       }
       ctx.restore();
       await videoSource.add(frame / fps, 1 / fps);
-
-      const audioEnd = frame === frameCount - 1 ? audio.length : Math.min(audio.length, Math.round((frame + 1) / fps * audio.sampleRate));
-      if (audioEnd - audioWritten >= audio.sampleRate || (audioEnd > audioWritten && frame === frameCount - 1)) {
-        await audioSource.add(sliceAudio(audio, audioWritten, audioEnd));
-        audioWritten = audioEnd;
-      }
     }
     await output.finalize();
   } catch (error) {
