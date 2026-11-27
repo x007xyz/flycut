@@ -78,7 +78,8 @@ function send(name, args) {
     return Promise.reject(new Error('No FlyCut editor is connected. Open FlyCut in the browser and turn on "本地 MCP 服务" in the AI menu.'));
   }
   const id = ++nextId;
-  const timeout = name === 'export_video' ? 30 * 60e3 : 120e3;
+  // 导出和字幕识别（含首次下载模型）耗时较长
+  const timeout = ['export_video', 'generate_subtitles'].includes(name) ? 30 * 60e3 : 120e3;
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       pending.delete(id);
