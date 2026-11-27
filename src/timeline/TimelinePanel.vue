@@ -5,7 +5,7 @@
       class="flex justify-center items-center h-24 m-auto w-2/3 dark:bg-gray-500 bg-gray-200 rounded-md text-sm border-dashed border-2 dark:border-gray-500 border-gray-200"
     >
       <VideoIcon class="text-xl mr-4" />
-      将视频、图片或音频拖拽到这里，开始编辑你的大作吧~
+      从资源列表把视频、图片或音频拖到这里，开始编辑你的大作吧~
     </div>
     <TimelineEditor
       v-else
@@ -37,7 +37,8 @@
   import { usePlayerState } from '@/stores/playerState';
   import { usePageState } from '@/stores/pageState';
   import { baseFps } from '@/data/trackConfig';
-  import { assetDragType, importMedia, insertAsset } from '@/utils/importMedia';
+  import { ElMessage } from 'element-plus';
+  import { assetDragType, insertAsset } from '@/utils/importMedia';
   import { useResourceState } from '@/stores/resourceStore';
   const resources = useResourceState();
   import { computed, shallowRef, watch } from 'vue';
@@ -95,21 +96,21 @@
     playerStore.playStartFrame = Math.min(Math.max(frame, 0), store.frameCount);
   }
 
+  // 时间轴只接受资源列表中的素材；文件要先导入资源列表
   function onFileDragOver(event: DragEvent) {
     const types = event.dataTransfer?.types ?? [];
     if (!types.includes('Files') && !types.includes(assetDragType)) return;
     event.preventDefault();
-    event.dataTransfer!.dropEffect = 'copy';
+    event.dataTransfer!.dropEffect = types.includes(assetDragType) ? 'copy' : 'none';
   }
   async function onFileDrop(event: DragEvent) {
     const assetId = event.dataTransfer?.getData(assetDragType);
-    const files = event.dataTransfer?.files;
-    if (!assetId && !files?.length) return;
+    if (!assetId && !event.dataTransfer?.files.length) return;
     event.preventDefault();
     event.stopPropagation();
     const record = assetId && resources.assets.find(({ id }) => id === assetId);
     if (record) await insertAsset(record);
-    else if (files?.length) await importMedia(Array.from(files), { insert: true });
+    else if (!assetId) ElMessage.warning('请先在左侧“资源”中导入文件，再把资源拖到时间轴');
   }
 </script>
 
