@@ -112,3 +112,14 @@
     await importVideo(video);
   }
 </script>
+
+<style>
+  .dark .tk-timeline-editor[data-theme="dark"] {
+    --tk-bg: rgb(32, 32, 35);
+    --tk-surface: rgb(32, 32, 35);
+    --tk-panel: rgb(32, 32, 35);
+    --tk-ruler-bg: rgb(32, 32, 35);
+    --tk-track: rgb(55, 55, 58);
+    --tk-border: rgb(18, 18, 18);
+  }
+</style>
