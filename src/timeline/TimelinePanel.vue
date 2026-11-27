@@ -101,7 +101,8 @@
     const types = event.dataTransfer?.types ?? [];
     if (!types.includes('Files') && !types.includes(assetDragType)) return;
     event.preventDefault();
-    event.dataTransfer!.dropEffect = types.includes(assetDragType) ? 'copy' : 'none';
+    // 文件也要接收 drop，才能提示先导入资源列表
+    event.dataTransfer!.dropEffect = 'copy';
   }
   async function onFileDrop(event: DragEvent) {
     const assetId = event.dataTransfer?.getData(assetDragType);
