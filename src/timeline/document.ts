@@ -2,7 +2,7 @@ import type { TimelineClip, TimelineDocument } from '@flycut/timeline-kit/core';
 import type { Track, TrackLineItem } from '@/class/Track';
 import { baseFps } from '@/data/trackConfig';
 
-const frameMs = (frame: number) => frame * 1000 / baseFps;
+const frameMs = (frame: number) => Math.round(frame * 1000 / baseFps);
 const msFrame = (ms: number) => Math.round(ms * baseFps / 1000);
 
 function trimmable(track: Track): track is Extract<Track, { offsetL: number }> {
@@ -45,7 +45,7 @@ export function applyDocument(lines: TrackLineItem[], document: TimelineDocument
       const track = tracks.get(clip.id);
       if (!track) return [];
       track.start = msFrame(clip.startMs);
-      track.end = msFrame(clip.endMs);
+      track.end = track.start + Math.max(1, msFrame(clip.endMs - clip.startMs));
       if (trimmable(track) && clip.trim) {
         track.offsetL = msFrame(clip.trim.startMs);
         track.offsetR = Math.max(0, track.frameCount - track.offsetL - (track.end - track.start));
