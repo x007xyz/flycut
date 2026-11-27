@@ -16,6 +16,7 @@ const OpenSSl = (process.env?.npm_lifecycle_event === 'dev-ssl');
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  worker: { format: 'es' },
   server: {
     port: 4008,
     host: OpenSSl,

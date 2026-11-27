@@ -14,7 +14,8 @@
         <i class="iconfont icon-shuangjiantou_zuo_line" @click="switchCollapse" />
       </div>
       <MediaPanel v-if="activeKey === 'media'" />
-      <TextPanel v-if="activeKey === 'text'" /> 
+      <TextPanel v-if="activeKey === 'text'" />
+      <SubtitlePanel v-if="activeKey === 'subtitle'" />
 </div>
   </div>
 </template>
