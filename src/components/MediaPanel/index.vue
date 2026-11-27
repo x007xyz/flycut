@@ -82,13 +82,13 @@
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
   }
 
-  // 当前工程以时间轴为准，其他工程读 meta.json 里记录的素材
+  // 所有工程 meta.json 记录的素材（含其他标签页保存的当前工程），加上当前时间轴和撤销记录引用的素材
   async function usedAssets() {
     await project.refresh();
-    const used = new Set(project.projects.filter(({ id }) => id !== project.current?.id).flatMap(({ assets }) => assets));
-    tracks.trackList.forEach(({ list }) => list.forEach(track => {
+    const used = new Set(project.projects.flatMap(({ assets }) => assets));
+    [tracks.trackList, ...tracks.historyLines()].forEach(lines => lines.forEach(({ list }) => list.forEach(track => {
       if (track.type !== 'text') used.add((track as { source: { id: string }}).source.id);
-    }));
+    })));
     return used;
   }
 

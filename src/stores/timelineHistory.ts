@@ -89,9 +89,13 @@ export function useTimelineHistory(
     current = capture();
     pending.value = false;
   }
+  // 撤销/重做记录中的时间轴，清理素材时这些片段引用的素材也要保留
+  function historyLines() {
+    return [...undoStack, ...redoStack].map(snapshot => snapshot.lines);
+  }
   onScopeDispose(cancel);
   return {
-    undo, redo, flushHistory: flush, resetHistory,
+    undo, redo, flushHistory: flush, resetHistory, historyLines,
     canUndo: computed(() => pending.value || undoStack.length > 0),
     canRedo: computed(() => !pending.value && redoStack.length > 0)
   };
