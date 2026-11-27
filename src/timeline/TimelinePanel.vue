@@ -83,8 +83,10 @@
 
   function onDocumentChange({ document: next }: TimelineEditorSnapshot) {
     if (JSON.stringify(next) === JSON.stringify(document.value)) return;
+    const selected = store.selectResource?.id;
     store.flushHistory();
     applyDocument(store.trackList as TrackLineItem[], next);
+    if (selected) store.selectTrackById(selected);
   }
   function onFrameChange(frame: number) {
     if (frame === playerStore.playStartFrame) return;
