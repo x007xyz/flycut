@@ -24,7 +24,6 @@
       @documentchange="onDocumentChange"
       @update:currentFrame="onFrameChange"
       @update:trackScale="(scale: number) => store.trackScale = scale"
-      @selectionchange="onSelectionChange"
       @ready="(instance: NativeTimelineEditor) => editor = instance"
     />
   </div>
@@ -65,7 +64,17 @@
     'history:undo': () => store.undo(),
     'history:redo': () => store.redo()
   };
+  // 只同步用户在时间轴上的选择；文档更新时 timeline-kit 保留的旧选择不回写
+  function syncSelection({ type, payload }: TimelineCommand<{ clipId?: string, clipIds?: string[] }>) {
+    const id = type === 'selection:set' ? payload?.clipId ?? payload?.clipIds?.[0] : undefined;
+    if (id) store.selectTrackById(id);
+    else Object.assign(store.selectTrackItem, { line: -1, index: -1 });
+  }
   const onBeforeCommand: BeforeCommandHook = command => {
+    if (command.type === 'selection:set' || command.type === 'selection:clear') {
+      syncSelection(command as TimelineCommand<{ clipId?: string, clipIds?: string[] }>);
+      return undefined;
+    }
     const run = delegated[command.type];
     if (!run) return undefined;
     run(command as TimelineCommand<{ clipIds?: string[] }>);
@@ -81,10 +90,6 @@
     if (frame === playerStore.playStartFrame) return;
     playerStore.isPause = true;
     playerStore.playStartFrame = Math.min(Math.max(frame, 0), store.frameCount);
-  }
-  function onSelectionChange({ selection }: TimelineEditorSnapshot) {
-    if (selection.clipId) store.selectTrackById(selection.clipId);
-    else Object.assign(store.selectTrackItem, { line: -1, index: -1 });
   }
 
   function onFileDragOver(event: DragEvent) {
