@@ -12,9 +12,9 @@ export type MediaKind = 'video' | 'image' | 'audio';
 export const mediaAccept = '.mp4,video/mp4,image/*,audio/*';
 
 export function mediaKind(file: File): MediaKind | null {
-  if (file.type === 'video/mp4' || /\.mp4$/i.test(file.name)) return 'video';
-  if (file.type.startsWith('image/')) return 'image';
   if (file.type.startsWith('audio/')) return 'audio';
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type === 'video/mp4' || /\.mp4$/i.test(file.name)) return 'video';
   return null;
 }
 

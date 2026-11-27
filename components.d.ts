@@ -12,7 +12,6 @@ declare module '@vue/runtime-core' {
     AttrEmptyIcon: typeof import('./src/components/icons/AttrEmptyIcon.vue')['default']
     AttributeContainer: typeof import('./src/components/container/AttributeContainer.vue')['default']
     AudioIcon: typeof import('./src/components/icons/AudioIcon.vue')['default']
-    AudioPanel: typeof import('./src/components/AudioPanel/index.vue')['default']
     CanvasPlayer: typeof import('./src/components/container/CanvasPlayer.vue')['default']
     ColorPicker: typeof import('./src/components/item/formItem/color/ColorPicker.vue')['default']
     DeleteIcon: typeof import('./src/components/icons/DeleteIcon.vue')['default']
@@ -37,10 +36,8 @@ declare module '@vue/runtime-core' {
     FormItem: typeof import('./src/components/item/formItem/FormItem.vue')['default']
     HeaderContainer: typeof import('./src/components/container/HeaderContainer.vue')['default']
     ImageIcon: typeof import('./src/components/icons/ImageIcon.vue')['default']
-    ImagePanel: typeof import('./src/components/ImagePanel/index.vue')['default']
     ItemList: typeof import('./src/components/ItemList.vue')['default']
     Loading: typeof import('./src/components/Loading.vue')['default']
-    LocalPanel: typeof import('./src/components/LocalPanel/index.vue')['default']
     MediaPanel: typeof import('./src/components/MediaPanel/index.vue')['default']
     MenuList: typeof import('./src/components/MenuList.vue')['default']
     Player: typeof import('./src/components/item/player/Player.vue')['default']
@@ -63,6 +60,5 @@ declare module '@vue/runtime-core' {
     TransitionIcon: typeof import('./src/components/icons/TransitionIcon.vue')['default']
     UndoIcon: typeof import('./src/components/icons/UndoIcon.vue')['default']
     VideoIcon: typeof import('./src/components/icons/VideoIcon.vue')['default']
-    VideoPanel: typeof import('./src/components/VideoPanel/index.vue')['default']
   }
 }
