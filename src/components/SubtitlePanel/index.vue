@@ -20,11 +20,11 @@
 <script setup lang="ts">
   import { ref } from 'vue';
   import { ElMessage } from 'element-plus';
-  import { addSubtitles, asrLanguages, asrModels, textSegments, transcribeTimeline } from '@/subtitles';
+  import { addSubtitles, asrLanguages, asrModels, defaultAsrLanguage, textSegments, transcribeTimeline } from '@/subtitles';
   import { formatSrt, parseSrt } from '@/subtitles/srt';
 
   const model = ref(asrModels[0].id);
-  const language = ref('');
+  const language = ref(defaultAsrLanguage());
   const busy = ref(false);
   const progressText = ref('');
   const srtInput = ref<HTMLInputElement>();

@@ -10,7 +10,7 @@ export interface AsrRequest {
   audio: Float32Array;
   model: string;
   device: AsrDevice;
-  language?: string;
+  language: string;
 }
 
 export interface AsrChunk {
@@ -62,7 +62,7 @@ self.onmessage = async({ data }: MessageEvent<AsrRequest>) => {
       chunk_length_s: 30,
       stride_length_s: 5,
       task: 'transcribe',
-      ...data.language ? { language: data.language } : {}
+      language: data.language
     });
     post({ type: 'result', chunks: output.chunks ?? [] });
   } catch (error) {

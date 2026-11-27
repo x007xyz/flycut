@@ -46,6 +46,17 @@ test('SRT commands round-trip through the shared command layer', async({ page })
     expect.objectContaining({ type: 'text', content: 'Second line', start: 1.3, end: 2 })
   ]);
   expect((await call('export_srt')).srt).toBe(srt);
+
+  const [long] = await call('import_srt', { content: '1\n00:00:03,000 --> 00:00:05,000\nAnd so my fellow Americans ask not what your country can do for you\n' });
+  const lines = long.content.split('\n');
+  expect(lines.length).toBeGreaterThan(1);
+  expect(lines.join(' ')).toBe('And so my fellow Americans ask not what your country can do for you');
+  const widest = await page.evaluate(({ text, size }) => {
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    ctx.font = `${size}px Arial`;
+    return Math.max(...text.split('\n').map(line => ctx.measureText(line).width));
+  }, { text: long.content, size: long.fontSize });
+  expect(widest).toBeLessThanOrEqual(180 * 0.9);
 });
 
 // 需要联网下载 Whisper 模型，默认跳过：FLYCUT_ASR_E2E=1 pnpm exec playwright test e2e/subtitles.spec.ts

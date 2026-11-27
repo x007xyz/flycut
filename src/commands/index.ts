@@ -286,7 +286,7 @@ const handlers: Record<string, (args: Args) => unknown> = {
   },
   async generate_subtitles({ language, model }) {
     const segments = await transcribeTimeline({
-      language: typeof language === 'string' ? language : '',
+      language: typeof language === 'string' && language ? language : undefined,
       model: typeof model === 'string' && model ? model : undefined
     });
     return addSubtitles(segments).map(track => describeById(track.id));

@@ -5,6 +5,7 @@ import type { Track } from '@/class/Track';
 import { usePlayerState } from '@/stores/playerState';
 import { useTrackState } from '@/stores/trackState';
 import { audioClips, mixAudio } from '@/utils/renderTimeline';
+import { fontOf, textPadding } from '@/render/text';
 import type { AsrChunk, AsrDevice, AsrMessage, AsrRequest } from './asrWorker';
 import type { SubtitleSegment } from './srt';
 
@@ -14,8 +15,8 @@ export const asrModels = [
   { id: 'onnx-community/whisper-small', label: 'Whisper Small（较大，最准确）' }
 ];
 
+// transformers.js 不做语种检测，未指定语言时多语种 Whisper 会按英文识别，所以总是传语言
 export const asrLanguages = [
-  { id: '', label: '自动检测' },
   { id: 'zh', label: '中文' },
   { id: 'en', label: 'English' },
   { id: 'ja', label: '日本語' },
@@ -24,6 +25,11 @@ export const asrLanguages = [
   { id: 'de', label: 'Deutsch' },
   { id: 'es', label: 'Español' }
 ];
+
+export function defaultAsrLanguage() {
+  const code = navigator.language.slice(0, 2).toLowerCase();
+  return asrLanguages.some(({ id }) => id === code) ? code : 'en';
+}
 
 export interface TranscribeOptions {
   model?: string;
@@ -63,7 +69,7 @@ async function preferredDevice(): Promise<AsrDevice> {
 
 let worker: Worker | null = null;
 
-function recognize(request: AsrRequest, onProgress?: TranscribeOptions['onProgress']) {
+function recognizeNow(request: AsrRequest, onProgress?: TranscribeOptions['onProgress']) {
   worker ??= new Worker(new URL('./asrWorker.ts', import.meta.url), { type: 'module' });
   const current = worker;
   return new Promise<AsrChunk[]>((resolve, reject) => {
@@ -77,8 +83,17 @@ function recognize(request: AsrRequest, onProgress?: TranscribeOptions['onProgre
   });
 }
 
+let queue: Promise<unknown> = Promise.resolve();
+
+// 同一个 worker 一次只处理一个识别请求，面板和 MCP 同时发起时排队
+function recognize(request: AsrRequest, onProgress?: TranscribeOptions['onProgress']) {
+  const result = queue.then(() => recognizeNow(request, onProgress));
+  queue = result.catch(() => undefined);
+  return result;
+}
+
 /** 识别时间轴音频，返回按时间轴计时的字幕段 */
-export async function transcribeTimeline({ model = asrModels[0].id, language = '', onProgress }: TranscribeOptions = {}) {
+export async function transcribeTimeline({ model = asrModels[0].id, language = defaultAsrLanguage(), onProgress }: TranscribeOptions = {}) {
   onProgress?.('audio', 0);
   const audio = await timelineSpeech();
   if (!audio) throw new Error('时间轴上没有可识别的音频');
@@ -101,14 +116,40 @@ export async function transcribeTimeline({ model = asrModels[0].id, language = '
   });
 }
 
+const wrapTokens = /[\u2e80-\u9fff\uac00-\ud7af\uff00-\uffef]|[^\s\u2e80-\u9fff\uac00-\ud7af\uff00-\uffef]+|\s+/g;
+
+/** 按画面宽度折行：中日韩文字逐字断行，其他文字按单词断行 */
+export function wrapText(text: string, font: string, maxWidth: number) {
+  const ctx = new OffscreenCanvas(1, 1).getContext('2d') as OffscreenCanvasRenderingContext2D;
+  ctx.font = font;
+  return text.split('\n').flatMap(paragraph => {
+    const lines: string[] = [];
+    let line = '';
+    for (const token of paragraph.match(wrapTokens) ?? []) {
+      const next = line + token;
+      if (line.trim() && ctx.measureText(next.trimEnd()).width > maxWidth) {
+        lines.push(line.trimEnd());
+        line = token.trimStart();
+      } else {
+        line = next;
+      }
+    }
+    if (line.trim()) lines.push(line.trim());
+    return lines;
+  })
+    .join('\n');
+}
+
 /** 每段字幕生成一个文字片段，放在画面下方 */
 export function addSubtitles(segments: SubtitleSegment[]) {
   const timeline = useTrackState();
   const player = usePlayerState();
+  const fontSize = Math.round(player.playerWidth / 15);
+  const maxWidth = player.playerWidth * 0.9 - textPadding * 2;
   return segments.map(({ start, end, text }, index) => {
     const track = new TextTrack({
-      content: text,
-      fontSize: 24,
+      content: wrapText(text, fontOf({ fontSize, fontFamily: 'Arial' }), maxWidth),
+      fontSize,
       fontFamily: 'Arial',
       name: '字幕',
       fill: '#FFFFFF',
