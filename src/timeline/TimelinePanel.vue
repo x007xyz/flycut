@@ -119,6 +119,7 @@
 
 <style>
   .tk-track-clip[data-type="text"] .tk-default-clip {
+    background: linear-gradient(135deg, #653a34, #8f4a40);
     display: flex;
     flex-direction: row;
     justify-content: flex-start;
@@ -127,7 +128,7 @@
   }
   .tk-track-clip[data-type="text"] .tk-default-clip-title {
     overflow: hidden;
-    color: #fff;
+    color: #f5f2eb;
     font-size: 12px;
     line-height: 18px;
     white-space: nowrap;
@@ -136,11 +137,34 @@
   .tk-track-clip[data-type="text"] .tk-default-clip-meta {
     display: none;
   }
-  .tk-timeline-editor {
-    --tk-accent: #ff735c;
-    --tk-border-strong: #ff735c;
+  .tk-timeline-editor .tk-default-clip[data-type="image"] {
+    background: linear-gradient(135deg, #3a3a42, #77717a);
+    color: #f5f2eb;
+  }
+  .tk-timeline-editor .tk-track-icon .tk-lucide {
+    stroke: var(--tk-muted);
+  }
+  .tk-timeline-editor .tk-media-clip {
+    background: linear-gradient(180deg, #212227, #2a2b31);
+    color: #f5f2eb;
+  }
+  .tk-timeline-editor .tk-media-clip.is-audio {
+    background: linear-gradient(180deg, #3c2a27, #51322d);
+  }
+  .tk-timeline-editor .tk-media-clip-filmstrip-host, .tk-timeline-editor .tk-media-clip-filmstrip {
+    background: #111215;
+  }
+  .tk-timeline-editor .tk-media-clip-waveform {
+    background: rgba(255, 115, 92, .12);
+    color: #ffb9ae;
+  }
+  .tk-timeline-editor .tk-media-clip-waveform.is-audio-body {
+    background: rgba(255, 115, 92, .08);
+    color: #ff9d8d;
   }
   .tk-timeline-editor[data-theme="light"] {
+    --tk-accent: #ff735c;
+    --tk-border-strong: #ff735c;
     --tk-bg: #f5f2eb;
     --tk-surface: #f5f2eb;
     --tk-panel: #f5f2eb;
@@ -156,6 +180,8 @@
     --tk-muted: #595653;
   }
   .dark .tk-timeline-editor[data-theme="dark"] {
+    --tk-accent: #ff735c;
+    --tk-border-strong: #ff735c;
     --tk-bg: #1b1c20;
     --tk-surface: #1b1c20;
     --tk-panel: #1b1c20;

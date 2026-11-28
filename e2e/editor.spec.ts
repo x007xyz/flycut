@@ -858,3 +858,46 @@ test('a fade-in animation shows in the DOM preview, persists and is drawn into t
   expect(start).toBeLessThan(20);
   expect(end).toBeGreaterThan(50);
 });
+
+test('keyboard shortcuts seek, split, undo, delete and toggle playback', async({ page }) => {
+  await addMedia(page);
+  await expectImported(page);
+  const video = page.locator('.tk-track-clip[data-type="video"]');
+  const time = page.locator('#player').locator('../..')
+    .locator('.text-blue-400');
+  await video.click({ position: { x: 12, y: 14 }});
+  await page.keyboard.press('Home');
+  await expect(time).toHaveText('00:00:00:00');
+  await page.keyboard.press('ArrowRight');
+  await expect(time).toHaveText('00:00:00:01');
+  const total = page.locator('#player').locator('../..')
+    .locator('.text-blue-400 + span, .text-blue-400 ~ span')
+.last();
+  // 示例视频不到 1 秒，Shift+→ 跳 1 秒会停在结尾
+  await page.keyboard.press('Shift+ArrowRight');
+  await expect(time).toHaveText(await total.textContent() ?? '');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowLeft');
+  await expect(time).toHaveText('00:00:00:02');
+
+  await page.keyboard.press('ControlOrMeta+b');
+  await expect(video).toHaveCount(2);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(video).toHaveCount(1);
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  await expect(video).toHaveCount(2);
+
+  await page.keyboard.press('Space');
+  await expect.poll(() => time.textContent()).not.toBe('00:00:00:02');
+  await page.keyboard.press('Space');
+  const paused = await time.textContent();
+  await page.waitForTimeout(300);
+  await expect(time).toHaveText(paused ?? '');
+
+  await video.last().click({ position: { x: 12, y: 14 }});
+  await page.keyboard.press('Delete');
+  await expect(video).toHaveCount(1);
+});

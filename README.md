@@ -36,6 +36,19 @@ Only pages listed in `FLYCUT_ALLOWED_ORIGINS` (default `http://localhost:4008,ht
 
 **WebMCP**: when the browser exposes `document.modelContext` (W3C WebMCP draft), the same commands are registered as page tools; they can be turned off in the "AI" menu.
 
+## Keyboard shortcuts
+
+| Key | Action |
+| --- | --- |
+| Space | Play / pause |
+| ← / → | Previous / next frame (Shift: 1 second) |
+| Home / End | Jump to start / end |
+| Ctrl/⌘ + B | Split the selected video at the playhead |
+| Delete / Backspace | Delete the selected clip |
+| Ctrl/⌘ + Z, Ctrl/⌘ + Shift + Z or Ctrl/⌘ + Y | Undo, redo |
+| Ctrl/⌘ + = / - | Zoom the timeline in / out |
+| Esc | Clear the selection |
+
 ## Animations
 
 Video, image and text clips have entrance, exit and loop animations (属性 → 动画, or the MCP `set_animation` command): fade, slide, zoom, pop, blur, rotate, typewriter for text, and pulse, float, shake, flicker, spin loops. They are evaluated with paused [anime.js](https://animejs.com) timelines seeked to each frame, so the preview and the exported MP4 show the same motion.

@@ -285,9 +285,11 @@
 
 <style>
   body .cc-move .moveable-control{
-    @apply border w-3 h-3 border-yellow-400 bg-gray-50 -ml-1.5 -mt-1.5;
+    @apply border w-3 h-3 bg-gray-50 -ml-1.5 -mt-1.5;
+    border-color: #ff735c;
   }
   body .cc-move .moveable-line{
-    @apply bg-yellow-400 w-px;
+    @apply w-px;
+    background: #ff735c;
   }
 </style>
