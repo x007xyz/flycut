@@ -1,14 +1,18 @@
 <template>
   <div
+      id="player"
       ref="moveContainer"
-      class="absolute left-0 right-0 top-0 bottom-0 m-auto"
+      class="absolute left-0 right-0 top-0 bottom-0 m-auto bg-black"
   >
+    <!-- 只裁剪画面，Moveable 控制框在裁剪层之外，元素超出画布时仍可缩放 -->
+    <div class="absolute inset-0 overflow-hidden">
     <div
         v-for="(item, index) in targetList"
         :key="item.id"
         :data-eleId="item.id"
         :data-lineIndex="item.lineIndex"
         :data-itemIndex="item.itemIndex"
+        :data-kind="item.kind"
         :style="{
           zIndex: index,
           top: `${item.top}px`,
@@ -20,7 +24,19 @@
         class="move-target absolute"
         @click.stop="selectItem(item.id)"
         @mousedown="mousedown($event, item.id)"
-    />
+    >
+      <canvas
+          :ref="el => setCanvas(item.id, el)"
+          class="absolute pointer-events-none"
+          :style="{
+            left: `${-item.pad}px`,
+            top: `${-item.pad}px`,
+            width: `${item.w + item.pad * 2}px`,
+            height: `${item.h + item.pad * 2}px`
+          }"
+      />
+    </div>
+    </div>
     <Moveable
         ref="moveable"
         v-bind="draggableOptions"
@@ -37,22 +53,19 @@
 <script setup lang="ts">
   import { defaultMoveOptions } from '@/data/constant';
   import Moveable from 'vue3-moveable';
-  import { computedItemShowArea, isVideo } from '@/utils/common';
-  import { ref, nextTick, reactive, computed, watch, onBeforeUnmount } from 'vue';
+  import { ref, nextTick, reactive, computed, watch, onBeforeUnmount, toRaw } from 'vue';
   import { usePlayerState } from '@/stores/playerState';
   import { useTrackState } from '@/stores/trackState';
+  import { buildScene, frameKey, type Layer, type Track } from '@/render/scene';
+  import { drawLayer, loadFrameSources } from '@/render/drawFrame';
+  import { textPadding } from '@/render/text';
   import type { VideoTrack } from '@/class/VideoTrack';
   import type { TextTrack } from '@/class/TextTrack';
   import type { ImageTrack } from '@/class/ImageTrack';
   const props = defineProps({
-    canvasSize: {
-      type: Object,
-      default() {
-        return {
-          width: 0,
-          height: 0
-        };
-      }
+    zoom: {
+      type: Number,
+      default: 1
     }
   });
   const store = usePlayerState();
@@ -60,50 +73,110 @@
   const moveContainer = ref();
   const moveable = ref();
   const moveTarget = ref();
+  // 文字描边、背景和超出行高的字形（如越南语声调符号）可能超出文字框
+  function bleedOf(layer: Layer) {
+    return layer.kind === 'text' ? textPadding + 2 + layer.style.fontSize * 0.5 : 0;
+  }
   interface TargetItem {
     id: string;
+    kind: Layer['kind'];
     lineIndex: number,
     itemIndex: number,
     y: number;
     x: number;
     w: number;
     h: number;
+    pad: number;
     scale: number;
     left: number;
     top: number;
   }
+  // 预览即 DOM：每个可见图层是一个元素，画面绘制在元素内的 canvas 上，Moveable 直接拖拽该元素
+  const scene = computed(() => {
+    const frame = store.playStartFrame;
+    // 同一行的剪切点处只显示后一个片段，与导出一致
+    const tracks = trackStore.trackList.flatMap(({ list }) => (list as Track[])
+      .filter(track => track.end !== frame || !list.some(other => other.start === frame)));
+    return buildScene(tracks, frame, { width: store.playerWidth, height: store.playerHeight }, { includeEnd: true });
+  });
+  const trackIndex = computed(() => {
+    const index = new Map<string, { lineIndex: number, itemIndex: number, track: VideoTrack | ImageTrack | TextTrack }>();
+    trackStore.trackList.forEach(({ list }, lineIndex) => list.forEach((track, itemIndex) => {
+      index.set(track.id, { lineIndex, itemIndex, track: track as VideoTrack | ImageTrack | TextTrack });
+    }));
+    return index;
+  });
   const targetList = computed(() => {
     if (store.playerHeight === 0 && store.playerWidth === 0) {
       return [];
     }
-
-    const layerArr: TargetItem[] = [];
-
-    trackStore.trackList.forEach(({ list }, lineIndex) => {
-      const index = list.findIndex((item: Record<string, any>, itemIndex) => {
-        if (store.playStartFrame >= item.start && store.playStartFrame <= item.end && item.draw) {
-          return true;
-        }
-        return false;
-      });
-      const trackItem: VideoTrack | ImageTrack | TextTrack = list[index];
-      if (trackItem) {
-        layerArr.unshift({
-          lineIndex,
-          itemIndex: index,
-          id: trackItem.id,
-          scale: trackItem.scale / 100,
-          x: trackItem.centerX,
-          y: trackItem.centerY,
-          w: trackItem.width,
-          h: trackItem.height,
-          left: store.playerWidth / 2 - trackItem.width / 2,
-          top: store.playerHeight / 2 - trackItem.height / 2
-        });
-      }
+    return scene.value.layers.flatMap((layer): TargetItem[] => {
+      const entry = trackIndex.value.get(layer.clipId);
+      if (!entry) return [];
+      const { lineIndex, itemIndex, track } = entry;
+      const scale = track.scale / 100;
+      return [{
+        lineIndex,
+        itemIndex,
+        id: track.id,
+        kind: layer.kind,
+        scale,
+        x: track.centerX,
+        y: track.centerY,
+        w: track.width,
+        h: track.height,
+        pad: bleedOf(layer) / scale,
+        left: store.playerWidth / 2 - track.width / 2,
+        top: store.playerHeight / 2 - track.height / 2
+      }];
     });
-    return layerArr;
   });
+  const canvases = new Map<string, HTMLCanvasElement>();
+  function setCanvas(id: string, el: unknown) {
+    if (el) canvases.set(id, el as HTMLCanvasElement);
+    else canvases.delete(id);
+  }
+  let renderId = 0;
+  const painted = { key: '' };
+  async function paint() {
+    if (store.ingLoadingCount !== 0) return;
+    const current = toRaw(scene.value);
+    const ratio = (window.devicePixelRatio || 1) * props.zoom;
+    const key = `${ratio}:${frameKey(current)}`;
+    if (key === painted.key) return;
+    const id = ++renderId;
+    const sources = await loadFrameSources(current);
+    try {
+      // 较新的绘制请求已经开始，丢弃过期帧
+      if (id !== renderId) return;
+      current.layers.forEach((layer, index) => {
+        const canvas = canvases.get(layer.clipId);
+        const track = trackIndex.value.get(layer.clipId)?.track;
+        const ctx = canvas?.getContext('2d');
+        if (!canvas || !track || !ctx) return;
+        const bleed = bleedOf(layer);
+        const x = (layer.kind === 'text' ? layer.x : layer.rect.x) - bleed;
+        const y = (layer.kind === 'text' ? layer.y : layer.rect.y) - bleed;
+        const width = Math.max(1, Math.round((track.drawWidth + bleed * 2) * ratio));
+        const height = Math.max(1, Math.round((track.drawHeight + bleed * 2) * ratio));
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+        const scaleX = width / (track.drawWidth + bleed * 2);
+        const scaleY = height / (track.drawHeight + bleed * 2);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        ctx.setTransform(scaleX, 0, 0, scaleY, -x * scaleX, -y * scaleY);
+        drawLayer(ctx, layer, sources.images[index]);
+      });
+      // eslint-disable-next-line require-atomic-updates -- 过期请求已在上方通过 renderId 丢弃
+      painted.key = key;
+    } finally {
+      sources.release();
+    }
+  }
+  watch([scene, () => props.zoom, () => store.ingLoadingCount], paint, { deep: true, flush: 'post', immediate: true });
   const draggableOptions = reactive({
     target: moveTarget,
     className: 'cc-move',

@@ -9,14 +9,13 @@ import {
   type VideoSample
 } from 'mediabunny';
 import { AudioTrack } from '@/class/AudioTrack';
-import type { ImageTrack } from '@/class/ImageTrack';
-import type { TextTrack } from '@/class/TextTrack';
 import { VideoTrack } from '@/class/VideoTrack';
 import { baseFps } from '@/data/trackConfig';
-import { audioDecoder, videoDecoder, type MediaAsset } from './webcodecs';
+import { buildScene, type Size, type Track } from '@/render/scene';
+import { drawFrame, loadFrameSources, type FrameLoader } from '@/render/drawFrame';
+import { audioDecoder, imageDecoder, videoDecoder, type MediaAsset } from './webcodecs';
 
-export type Track = AudioTrack | ImageTrack | TextTrack | VideoTrack;
-type Size = { width: number, height: number };
+export type { Track };
 
 export const exportOptions = {
   width: 1080,
@@ -85,11 +84,6 @@ async function mixAudio(clips: AudioClip[], start: number, end: number) {
   return context.startRendering();
 }
 
-function paintBackground(ctx: OffscreenCanvasRenderingContext2D, width: number, height: number) {
-  ctx.fillStyle = 'black';
-  ctx.fillRect(0, 0, width, height);
-}
-
 async function *videoTimes(track: VideoTrack, asset: MediaAsset) {
   for (let frame = track.start; frame < track.end; frame++) yield asset.sampleTime(track.sourceTime(frame));
 }
@@ -107,45 +101,43 @@ export async function renderTimeline(tracks: Track[], playerSize: Size, writable
   output.addVideoTrack(videoSource, { frameRate: fps });
   output.addAudioTrack(audioSource);
 
-  const samples = new Map<VideoTrack, AsyncGenerator<VideoSample | null>>();
+  const clips = new Map(tracks.map(track => [track.id, track]));
+  const samples = new Map<string, AsyncGenerator<VideoSample | null>>();
+  // 导出逐帧顺序推进，每个视频片段使用一个顺序解码器
+  const load: FrameLoader = async layer => {
+    if (layer.kind === 'image') return imageDecoder.getFrame(layer.sourceId, layer.time, layer.format);
+    let iterator = samples.get(layer.clipId);
+    if (!iterator) {
+      const asset = await videoDecoder.decode({ id: layer.sourceId });
+      iterator = asset.videoSink.samplesAtTimestamps(videoTimes(clips.get(layer.clipId) as VideoTrack, asset));
+      samples.set(layer.clipId, iterator);
+    }
+    return (await iterator.next()).value ?? null;
+  };
   try {
-    const clips = await audioClips(tracks);
+    const audioSources = await audioClips(tracks);
     await output.start();
 
-    // 越靠前的轨道层级越高，因此从后往前绘制
-    const visual = tracks.filter((track): track is Exclude<Track, AudioTrack> => !(track instanceof AudioTrack)).reverse();
     const ratio = width / playerSize.width;
-    const drawTrack = async(track: Exclude<Track, AudioTrack>, frame: number) => {
-      if (!(track instanceof VideoTrack)) {
-        await track.draw(ctx as OffscreenCanvasRenderingContext2D & CanvasRenderingContext2D, playerSize, frame);
-        return;
-      }
-      let iterator = samples.get(track);
-      if (!iterator) {
-        const asset = await videoDecoder.decode({ id: track.source.id });
-        iterator = asset.videoSink.samplesAtTimestamps(videoTimes(track, asset));
-        samples.set(track, iterator);
-      }
-      const { value: sample } = await iterator.next();
-      if (sample) {
-        sample.draw(ctx, track.getDrawX(playerSize.width), track.getDrawY(playerSize.height), track.drawWidth, track.drawHeight);
-        sample.close();
-      }
-      if (frame === track.end - 1) await iterator.return(undefined);
-    };
     const framesPerWindow = audioWindow * fps;
     for (let frame = 0; frame < frameCount; frame++) {
       if (frame % framesPerWindow === 0) {
-        await audioSource.add(await mixAudio(clips, frame / fps, Math.min(frame + framesPerWindow, frameCount) / fps));
+        await audioSource.add(await mixAudio(audioSources, frame / fps, Math.min(frame + framesPerWindow, frameCount) / fps));
       }
-      ctx.save();
-      paintBackground(ctx, width, height);
-      ctx.scale(ratio, ratio);
-      for (const track of visual) {
-        if (frame >= track.start && frame < track.end) await drawTrack(track, frame);
+      const scene = buildScene(tracks, frame, playerSize);
+      const sources = await loadFrameSources(scene, load);
+      try {
+        drawFrame(ctx, scene, sources, { scale: ratio });
+      } finally {
+        sources.release();
       }
-      ctx.restore();
       await videoSource.add(frame / fps, 1 / fps);
+      for (const [clipId, iterator] of samples) {
+        if (clips.get(clipId)?.end === frame + 1) {
+          samples.delete(clipId);
+          await iterator.return(undefined);
+        }
+      }
     }
     await output.finalize();
   } catch (error) {

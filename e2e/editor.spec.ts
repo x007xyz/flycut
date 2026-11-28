@@ -41,7 +41,8 @@ async function dropFile(page: Page, name = 'sample.mp4') {
 
 async function expectImported(page: Page) {
   await expect(page.locator(tracks)).toHaveCount(1);
-  await expect.poll(() => page.locator('#player').evaluate((element: HTMLCanvasElement) => {
+  await expect.poll(() => page.locator('#player canvas').first()
+    .evaluate((element: HTMLCanvasElement) => {
     const copy = document.createElement('canvas');
     copy.width = 160;
     copy.height = 90;
@@ -87,6 +88,34 @@ test('empty project offers MP4 drop and has no tracks', async({ page }) => {
 test('MP4 drop creates a video track and renders preview pixels', async({ page }) => {
   await dropFile(page);
   await expectImported(page);
+});
+
+async function dragVideo(page: Page, dx: number) {
+  const target = page.locator('.move-target[data-kind="video"]');
+  await expect(target).toHaveCount(1);
+  const before = await target.boundingBox();
+  const picture = await target.locator('canvas').boundingBox();
+  if (!before || !picture) throw new Error('video element not visible');
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(before.x + before.width / 2 + dx, before.y + before.height / 2, { steps: 8 });
+  await page.mouse.up();
+  return { target, before, picture };
+}
+
+test('preview video is a DOM element that moves with the Moveable drag', async({ page }) => {
+  await dropFile(page);
+  await expectImported(page);
+  const { target, before, picture } = await dragVideo(page, 40);
+  await expect(page.locator('.cc-move .moveable-control').first()).toBeVisible();
+  const after = await target.boundingBox();
+  const moved = await target.locator('canvas').boundingBox();
+  expect(after!.x - before.x).toBeGreaterThan(30);
+  expect(moved!.x - picture.x).toBeCloseTo(after!.x - before.x, 0);
+  const centerX = async() => JSON.parse(await readDraft(page) ?? '{}').lines
+    ?.find((line: { type: string }) => line.type === 'video')
+    ?.tracks[0]?.placement.centerX;
+  await expect.poll(centerX).toBeGreaterThan(0);
 });
 
 test('local video file chooser creates a video track', async({ page }) => {
@@ -383,4 +412,63 @@ test('encoding recovers after confirm and save-picker cancellation', async({ pag
   await renderAndCancel('取消', 0);
   await renderAndCancel('保存 MP4', 1);
   await renderAndCancel('取消', 1);
+});
+
+test('exported MP4 keeps the position the video was dragged to', async({ page }) => {
+  await dropFile(page);
+  await expectImported(page);
+  const { before } = await dragVideo(page, 0);
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(before.x + before.width, before.y + before.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const handle = page.locator('.cc-move .moveable-control.moveable-ne');
+  const corner = await handle.boundingBox();
+  const player = await page.locator('#player').boundingBox();
+  if (!corner || !player) throw new Error('resize handle not rendered');
+  expect(corner.x).toBeGreaterThan(player.x + player.width);
+  // 拖出画布的元素其缩放控制点不被画布裁剪
+  expect(await handle.evaluate((element, [x, y]) => document.elementFromPoint(x, y) === element,
+    [corner.x + corner.width / 2, corner.y + corner.height / 2])).toBe(true);
+  const name = 'dragged.mp4';
+  await saveToOpfs(page, name);
+  const columns = await page.evaluate(async filename => {
+    const directory = await navigator.storage.getDirectory();
+    const file = await (await directory.getFileHandle(filename)).getFile();
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.muted = true;
+    try {
+      video.src = url;
+      await new Promise((resolve, reject) => {
+        video.onloadeddata = resolve;
+        video.onerror = reject;
+      });
+      video.currentTime = 0.2;
+      await new Promise(resolve => { video.onseeked = resolve; });
+      const canvas = document.createElement('canvas');
+      canvas.width = 108;
+      canvas.height = 192;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(video, 0, 0, 108, 192);
+      const pixels = ctx.getImageData(0, 0, 108, 192).data;
+      const bright = (from: number, to: number) => {
+        let max = 0;
+        for (let y = 0; y < 192; y++) {
+          for (let x = from; x < to; x++) {
+            const i = (y * 108 + x) * 4;
+            max = Math.max(max, pixels[i], pixels[i + 1], pixels[i + 2]);
+          }
+        }
+        return max;
+      };
+      return { left: bright(0, 40), right: bright(68, 108) };
+    } finally {
+      video.removeAttribute('src');
+      video.load();
+      URL.revokeObjectURL(url);
+    }
+  }, name);
+  expect(columns.left).toBeLessThan(30);
+  expect(columns.right).toBeGreaterThan(50);
 });
