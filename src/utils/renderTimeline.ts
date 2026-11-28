@@ -45,9 +45,9 @@ export function sourceWindow({ start, end, offsetL }: { start: number, end: numb
 }
 
 type AudioBuffers = { buffers(from: number, to: number): AsyncIterable<{ buffer: AudioBuffer, timestamp: number }> };
-type AudioClip = ReturnType<typeof sourceWindow> & { sink: AudioBuffers };
+export type AudioClip = ReturnType<typeof sourceWindow> & { sink: AudioBuffers };
 
-async function audioClips(tracks: Track[]) {
+export async function audioClips(tracks: Track[]) {
   const clips: AudioClip[] = [];
   for (const track of tracks) {
     if (!(track instanceof AudioTrack || track instanceof VideoTrack) || (track as { silent?: boolean }).silent) continue;
@@ -62,8 +62,7 @@ async function audioClips(tracks: Track[]) {
 // 按时间窗口混音，避免长时间轴一次性分配整段未压缩音频
 const audioWindow = 10;
 
-async function mixAudio(clips: AudioClip[], start: number, end: number) {
-  const { numberOfChannels, sampleRate } = exportOptions;
+export async function mixAudio(clips: AudioClip[], start: number, end: number, { numberOfChannels, sampleRate } = exportOptions) {
   const context = new OfflineAudioContext(numberOfChannels, Math.max(1, Math.round((end - start) * sampleRate)), sampleRate);
   for (const { sink, from, to, offset } of clips) {
     const clipStart = Math.max(start, offset);

@@ -2,12 +2,20 @@
   {
     "name": "get_timeline",
     "description": "Read the open FlyCut project: canvas size, duration, playhead and every clip. Times are in seconds; x/y are offsets in canvas pixels from the canvas centre; scale is a percentage.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
   },
   {
     "name": "list_assets",
     "description": "List the media assets (video, image, audio) in the resource library. Use an asset id with add_clip.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
   },
   {
     "name": "import_asset",
@@ -15,10 +23,22 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "url": { "type": "string", "description": "http(s), blob: or data: URL" },
-        "data": { "type": "string", "description": "Base64 file content, used when url is not given" },
-        "name": { "type": "string", "description": "File name including extension" },
-        "mimeType": { "type": "string", "description": "For example video/mp4, image/png or audio/wav" }
+        "url": {
+          "type": "string",
+          "description": "http(s), blob: or data: URL"
+        },
+        "data": {
+          "type": "string",
+          "description": "Base64 file content, used when url is not given"
+        },
+        "name": {
+          "type": "string",
+          "description": "File name including extension"
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "For example video/mp4, image/png or audio/wav"
+        }
       },
       "additionalProperties": false
     }
@@ -29,10 +49,18 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "assetId": { "type": "string" },
-        "start": { "type": "number", "minimum": 0, "description": "Start time in seconds, defaults to the playhead" }
+        "assetId": {
+          "type": "string"
+        },
+        "start": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Start time in seconds, defaults to the playhead"
+        }
       },
-      "required": ["assetId"],
+      "required": [
+        "assetId"
+      ],
       "additionalProperties": false
     }
   },
@@ -42,16 +70,42 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "content": { "type": "string", "minLength": 1 },
-        "start": { "type": "number", "minimum": 0, "description": "Seconds, defaults to the playhead" },
-        "duration": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds, defaults to 60" },
-        "fontSize": { "type": "number", "minimum": 1 },
-        "fill": { "type": "string", "description": "CSS colour" },
-        "stroke": { "type": "string", "description": "CSS colour of the outline" },
-        "x": { "type": "number" },
-        "y": { "type": "number" }
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "start": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Seconds, defaults to the playhead"
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Seconds, defaults to 60"
+        },
+        "fontSize": {
+          "type": "number",
+          "minimum": 1
+        },
+        "fill": {
+          "type": "string",
+          "description": "CSS colour"
+        },
+        "stroke": {
+          "type": "string",
+          "description": "CSS colour of the outline"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
       },
-      "required": ["content"],
+      "required": [
+        "content"
+      ],
       "additionalProperties": false
     }
   },
@@ -61,19 +115,48 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "clipId": { "type": "string" },
-        "start": { "type": "number", "minimum": 0 },
-        "duration": { "type": "number", "exclusiveMinimum": 0 },
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "scale": { "type": "number", "exclusiveMinimum": 0 },
-        "muted": { "type": "boolean" },
-        "content": { "type": "string", "minLength": 1 },
-        "fontSize": { "type": "number", "minimum": 1 },
-        "fill": { "type": "string" },
-        "stroke": { "type": "string" }
+        "clipId": {
+          "type": "string"
+        },
+        "start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "muted": {
+          "type": "boolean"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fontSize": {
+          "type": "number",
+          "minimum": 1
+        },
+        "fill": {
+          "type": "string"
+        },
+        "stroke": {
+          "type": "string"
+        }
       },
-      "required": ["clipId"],
+      "required": [
+        "clipId"
+      ],
       "additionalProperties": false
     }
   },
@@ -83,11 +166,21 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "clipId": { "type": "string" },
-        "trimStart": { "type": "number", "minimum": 0 },
-        "trimEnd": { "type": "number", "minimum": 0 }
+        "clipId": {
+          "type": "string"
+        },
+        "trimStart": {
+          "type": "number",
+          "minimum": 0
+        },
+        "trimEnd": {
+          "type": "number",
+          "minimum": 0
+        }
       },
-      "required": ["clipId"],
+      "required": [
+        "clipId"
+      ],
       "additionalProperties": false
     }
   },
@@ -97,10 +190,18 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "clipId": { "type": "string" },
-        "time": { "type": "number", "minimum": 0 }
+        "clipId": {
+          "type": "string"
+        },
+        "time": {
+          "type": "number",
+          "minimum": 0
+        }
       },
-      "required": ["clipId", "time"],
+      "required": [
+        "clipId",
+        "time"
+      ],
       "additionalProperties": false
     }
   },
@@ -109,8 +210,18 @@
     "description": "Delete clips from the timeline.",
     "inputSchema": {
       "type": "object",
-      "properties": { "clipIds": { "type": "array", "items": { "type": "string" }, "minItems": 1 } },
-      "required": ["clipIds"],
+      "properties": {
+        "clipIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "clipIds"
+      ],
       "additionalProperties": false
     }
   },
@@ -119,27 +230,91 @@
     "description": "Move the playhead to a time in seconds.",
     "inputSchema": {
       "type": "object",
-      "properties": { "time": { "type": "number", "minimum": 0 } },
-      "required": ["time"],
+      "properties": {
+        "time": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "time"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "undo",
     "description": "Undo the last timeline edit.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
   },
   {
     "name": "redo",
     "description": "Redo the last undone timeline edit.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "generate_subtitles",
+    "description": "Recognise speech in the timeline audio with Whisper running in the browser (transformers.js) and add one text clip per sentence. The first run downloads the model. Returns the added clips.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "language": {
+          "type": "string",
+          "description": "ISO 639-1 code of the spoken language such as zh or en; defaults to the browser language. Set it explicitly, the model does not detect the language"
+        },
+        "model": {
+          "type": "string",
+          "description": "Hugging Face model id, defaults to onnx-community/whisper-tiny; onnx-community/whisper-base and onnx-community/whisper-small are more accurate"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "import_srt",
+    "description": "Add subtitles from SRT text as text clips. Returns the added clips.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "export_srt",
+    "description": "Return every text clip on the timeline as SRT text.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
   },
   {
     "name": "export_video",
     "description": "Render the timeline to a 1080x1920 MP4 (H.264 + Opus) and download it in the browser. Can take minutes for long projects.",
     "inputSchema": {
       "type": "object",
-      "properties": { "fileName": { "type": "string", "description": "Defaults to <project name>.mp4" } },
+      "properties": {
+        "fileName": {
+          "type": "string",
+          "description": "Defaults to <project name>.mp4"
+        }
+      },
       "additionalProperties": false
     }
   }

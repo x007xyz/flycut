@@ -11,6 +11,8 @@ import { useTrackState } from '@/stores/trackState';
 import { importMedia, insertAsset } from '@/utils/importMedia';
 import { isExportSupported, renderTimeline } from '@/utils/renderTimeline';
 import { saveRenderedVideo } from '@/utils/videoExport';
+import { addSubtitles, textSegments, transcribeTimeline } from '@/subtitles';
+import { formatSrt, parseSrt } from '@/subtitles/srt';
 
 /**
  * 编辑命令层：界面之外的调用方（本地 MCP 服务、WebMCP）都通过这里修改工程。
@@ -281,6 +283,21 @@ const handlers: Record<string, (args: Args) => unknown> = {
   redo() {
     useTrackState().redo();
     return handlers.get_timeline({});
+  },
+  async generate_subtitles({ language, model }) {
+    const segments = await transcribeTimeline({
+      language: typeof language === 'string' && language ? language : undefined,
+      model: typeof model === 'string' && model ? model : undefined
+    });
+    return addSubtitles(segments).map(track => describeById(track.id));
+  },
+  import_srt({ content }) {
+    const segments = parseSrt(String(content));
+    if (!segments.length) throw new Error('No valid SRT cues found');
+    return addSubtitles(segments).map(track => describeById(track.id));
+  },
+  export_srt() {
+    return { srt: formatSrt(textSegments()) };
   },
   async export_video({ fileName }) {
     const timeline = useTrackState();
