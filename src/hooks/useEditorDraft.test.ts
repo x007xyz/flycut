@@ -30,7 +30,7 @@ describe('draft history baseline', () => {
     localStorage.setItem(draftKey, 'draft');
     vi.mocked(restoreDraft).mockResolvedValue({
       lines: [{ type: 'text', list: [{ id: 'text', type: 'text', start: 0, end: 90, content: 'restored' } as any] }],
-      trackScale: 60, playhead: 0, missingMedia
+      trackScale: 60, playhead: 0, canvas: '9:16', missingMedia
     });
     const store = useTrackState();
     const wrapper = mount({ setup: useEditorDraft, template: '<div />' }, { global: { plugins: [pinia] }});

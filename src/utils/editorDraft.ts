@@ -8,6 +8,7 @@ import { audioDecoder, imageDecoder, videoDecoder } from '@/utils/webcodecs';
 import { assetStore, assetUrl, type AssetRecord } from '@/storage/assets';
 import { useResourceState } from '@/stores/resourceStore';
 import { baseFps } from '@/data/trackConfig';
+import { defaultCanvasRatio, isCanvasRatio, type CanvasRatio } from '@/data/canvas';
 
 export const draftKey = 'flycut.editorDraft';
 
@@ -29,6 +30,7 @@ interface Draft {
   version: 1;
   trackScale: number;
   playhead: number;
+  canvas?: CanvasRatio;
   lines: { type: DraftTrack['type']; main?: boolean; tracks: DraftTrack[] }[];
 }
 
@@ -103,6 +105,8 @@ interface PackedDraft {
   v: 2;
   scale: number;
   at: number;
+  // 画布比例，默认 9:16 不写入
+  cr?: CanvasRatio;
   assets: PackedAsset[];
   styles: Style[];
   lines: { t: DraftTrack['type']; m?: 1; c: PackedClip[] }[];
@@ -120,7 +124,7 @@ function compact<T extends object>(value: T) {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T;
 }
 
-function pack({ trackScale, playhead, lines }: Omit<Draft, 'version'>): PackedDraft {
+function pack({ trackScale, playhead, canvas, lines }: Omit<Draft, 'version'>): PackedDraft {
   const assets: PackedAsset[] = [];
   const styles: Style[] = [];
   const indexes = new Map<string, number>();
@@ -171,6 +175,7 @@ function pack({ trackScale, playhead, lines }: Omit<Draft, 'version'>): PackedDr
     v: 2,
     scale: trackScale,
     at: playhead,
+    ...(canvas && canvas !== defaultCanvasRatio ? { cr: canvas } : {}),
     assets,
     styles,
     lines: lines.map(({ type, main, tracks }) => ({ t: type, ...(main ? { m: 1 as const } : {}), c: tracks.map(packTrack) }))
@@ -210,6 +215,7 @@ function unpack(packed: Record<string, unknown>): Draft {
     version: 1,
     trackScale: packed.scale as number,
     playhead: packed.at as number,
+    canvas: packed.cr,
     lines: lines.map(line => {
       if (!record(line) || !Array.isArray(line.c)) throw new Error('Invalid line');
       return { type: line.t, main: line.m === 1 ? true : undefined, tracks: line.c.map(clip => unpackClip(line.t, clip)) };
@@ -217,8 +223,8 @@ function unpack(packed: Record<string, unknown>): Draft {
   } as Draft;
 }
 
-export function encodeDraft(lines: Draft['lines'], trackScale: number, playhead: number) {
-  return JSON.stringify(pack({ trackScale, playhead, lines }));
+export function encodeDraft(lines: Draft['lines'], trackScale: number, playhead: number, canvas: CanvasRatio = defaultCanvasRatio) {
+  return JSON.stringify(pack({ trackScale, playhead, canvas, lines }));
 }
 
 /** 工程引用的素材 id */
@@ -255,6 +261,7 @@ function parseDraft(json: string): Draft {
   const parsed = JSON.parse(json) as unknown;
   const draft = record(parsed) && parsed.v === 2 ? unpack(parsed) : parsed;
   if (!record(draft) || draft.version !== 1 || !numbers(draft, 'trackScale', 'playhead') || !Array.isArray(draft.lines)
+    || (draft.canvas !== undefined && !isCanvasRatio(draft.canvas))
     || !draft.lines.every(line => record(line) && typeof line.type === 'string' && ['video', 'audio', 'image', 'text'].includes(line.type)
       && (line.main === undefined || typeof line.main === 'boolean')
       && Array.isArray(line.tracks) && line.tracks.every(track => validTrack(track, line.type as string)))) {
@@ -333,5 +340,5 @@ export async function restoreDraft(json: string) {
     list: (await Promise.all(tracks.map(restoreTrack))).filter((track): track is Track => track !== null)
   })));
 
-  return { trackScale: draft.trackScale, playhead: draft.playhead, lines: lines.filter(({ list, main }) => list.length || main), missingMedia };
+  return { trackScale: draft.trackScale, playhead: draft.playhead, canvas: draft.canvas ?? defaultCanvasRatio, lines: lines.filter(({ list, main }) => list.length || main), missingMedia };
 }

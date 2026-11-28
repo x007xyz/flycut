@@ -106,6 +106,8 @@ export class VideoTrack implements BaseTractItem {
     copy.offsetL = this.offsetL + cutFrame - this.start;
     copy.offsetR = this.offsetR;
     copy.silent = this.silent;
+    // 后半段沿用前半段的位置和尺寸，画布比例改过时也不会在分割处跳变
+    Object.assign(copy, { width: this.width, height: this.height, centerX: this.centerX, centerY: this.centerY, scale: this.scale });
     // 入场动画留在前半段，出场动画移到后半段
     copy.animations = { ...cloneDeep(this.animations), in: defaultAnimations().in };
     this.animations.out = defaultAnimations().out;

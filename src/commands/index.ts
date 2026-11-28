@@ -154,7 +154,7 @@ const handlers: Record<string, (args: Args) => unknown> = {
     return {
       project: useProjectState().current?.name ?? null,
       fps: baseFps,
-      canvas: { width: player.playerWidth, height: player.playerHeight },
+      canvas: { width: player.playerWidth, height: player.playerHeight, ratio: player.canvasRatio },
       duration: seconds(timeline.frameCount),
       playhead: seconds(player.playStartFrame),
       clips: timeline.trackList.flatMap(({ list }, line) => list.map(track => describeClip(track, line)))
@@ -274,14 +274,13 @@ const handlers: Record<string, (args: Args) => unknown> = {
   },
   split_clip({ clipId, time }) {
     const timeline = useTrackState();
-    const player = usePlayerState();
     const { track } = findClip(clipId);
     const frame = frames(Number(time));
     if (track.type !== 'video') throw new Error('Only video clips can be split');
     if (frame <= track.start || frame >= track.end) throw new Error('time must be inside the clip');
     timeline.selectTrackById(track.id);
     const before = new Set(timeline.trackList.flatMap(({ list }) => list.map(({ id }) => id)));
-    timeline.splitSelected(frame, { width: player.playerWidth, height: player.playerHeight });
+    timeline.splitSelected(frame);
     const tail = timeline.trackList.flatMap(({ list }) => list).find(({ id }) => !before.has(id));
     if (!tail) throw new Error('Split failed');
     return [describeById(track.id), describeById(tail.id)];
@@ -325,7 +324,7 @@ const handlers: Record<string, (args: Args) => unknown> = {
     const timeline = useTrackState();
     const player = usePlayerState();
     if (!timeline.frameCount) throw new Error('The timeline is empty');
-    if (!await isExportSupported()) throw new Error('This browser cannot encode H.264/Opus MP4');
+    if (!await isExportSupported({ width: player.playerWidth, height: player.playerHeight })) throw new Error('This browser cannot encode H.264/Opus MP4');
     const tracks = toRaw(timeline.trackList).flatMap(({ list }) => list.map(track => toRaw(track) as Track));
     const name = typeof fileName === 'string' && fileName ? fileName : `${useProjectState().current?.name ?? 'flycut'}.mp4`;
     const chunks: Blob[] = [];

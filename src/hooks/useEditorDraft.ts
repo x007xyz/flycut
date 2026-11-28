@@ -26,8 +26,11 @@ export function useEditorDraft() {
   let disposed = false;
   let writing: Promise<void> = Promise.resolve();
 
+  // 恢复时丢了素材的工程，时间轴或画布比例改动前不覆盖原工程
+  const recoveryKey = () => JSON.stringify([lines.value, player.canvasRatio]);
+
   function snapshot() {
-    return encodeDraft(lines.value, timeline.trackScale, player.playStartFrame);
+    return encodeDraft(lines.value, timeline.trackScale, player.playStartFrame, player.canvasRatio);
   }
 
   function persist(json: string, assets: string[]) {
@@ -51,7 +54,7 @@ export function useEditorDraft() {
   function flush() {
     window.clearTimeout(timer);
     if (restoring.value || !project.current) return writing;
-    if (unrecoveredTimeline === JSON.stringify(lines.value)) return writing;
+    if (unrecoveredTimeline === recoveryKey()) return writing;
     const next = snapshot();
     if (next === saved) return writing;
     saved = next;
@@ -70,7 +73,7 @@ export function useEditorDraft() {
     timer = window.setTimeout(flush, 300);
   }
 
-  watch([lines, () => timeline.trackScale], queueSave);
+  watch([lines, () => timeline.trackScale, () => player.canvasRatio], queueSave);
   watch([() => player.playStartFrame, () => player.isPause], () => {
     if (player.isPause) queueSave();
   });
@@ -96,6 +99,7 @@ export function useEditorDraft() {
       if (json) {
         const draft = await restoreDraft(json);
         if (disposed) return;
+        player.setCanvasRatio(draft.canvas);
         timeline.trackList.splice(0, timeline.trackList.length, ...draft.lines);
         timeline.resetHistory();
         timeline.trackScale = Math.max(0, Math.min(100, draft.trackScale));
@@ -110,7 +114,7 @@ export function useEditorDraft() {
     } finally {
       if (!disposed) {
         saved = snapshot();
-        if (restoreWarning.value) unrecoveredTimeline = JSON.stringify(lines.value);
+        if (restoreWarning.value) unrecoveredTimeline = recoveryKey();
         restoring.value = false;
         markEditorReady();
         // 快照比 OPFS 中的工程新（上次关闭时异步写入可能未完成），补写一次

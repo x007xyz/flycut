@@ -112,7 +112,7 @@
     } else if (type === 'RedoIcon') {
       trackStore.redo();
     } else if (type === 'SplitIcon') {
-      trackStore.splitSelected(playerStore.playStartFrame, { width: playerStore.playerWidth, height: playerStore.playerHeight });
+      trackStore.splitSelected(playerStore.playStartFrame);
     }
   }
 </script>

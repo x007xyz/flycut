@@ -162,12 +162,11 @@ export const useTrackState = defineStore('trackState', () => {
     selectTrackItem.line = -1;
     selectTrackItem.index = -1;
   }
-  function splitSelected(frame: number, playerSize: { width: number, height: number }) {
+  function splitSelected(frame: number) {
     const active = selectResource.value;
     if (!active || active.type !== 'video' || frame <= active.start || frame >= active.end) return;
     history.flushHistory();
     const tail = active.split(frame);
-    tail.resize(playerSize);
     addTrack(tail, false);
   }
 

@@ -63,7 +63,7 @@
 
   // 分割、删除、撤销由 flycut 的 trackState 处理，时间轴只负责移动和裁剪
   const delegated: Record<string, (command: TimelineCommand<{ clipIds?: string[] }>) => void> = {
-    'clip:split': () => store.splitSelected(playerStore.playStartFrame, { width: playerStore.playerWidth, height: playerStore.playerHeight }),
+    'clip:split': () => store.splitSelected(playerStore.playStartFrame),
     'clip:delete': ({ payload }) => store.removeTracks(payload?.clipIds ?? editor.value?.getSnapshot().selection.clipIds ?? []),
     'history:undo': () => store.undo(),
     'history:redo': () => store.redo()

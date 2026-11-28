@@ -12,7 +12,7 @@ Website: [flycut.co](https://flycut.co)
 ## Features (v2)
 - **Resource library**: imported video, images and audio go to the resource list first, where they are compressed and converted and get a cover and waveform. Drag them from the list to the timeline.
 - **Timeline**: built on [@flycut/timeline-kit](https://github.com/x007xyz/timeline-kit), with multiple tracks, move, trim, split, snapping, undo/redo and keyboard shortcuts.
-- **Canvas**: preview and export use the same Canvas renderer (`drawFrame`), so they look the same. Move and resize clips directly on the canvas.
+- **Canvas**: preview and export use the same Canvas renderer (`drawFrame`), so they look the same. Move and resize clips directly on the canvas. Switch the canvas ratio (9:16, 16:9, 1:1, 3:4, 4:3) in the header; the export resolution follows it (for example 1920×1080 for 16:9).
 - **Text and animations**: text styles, plus entrance, exit and loop animations ([anime.js](https://animejs.com)).
 - **Subtitles**: in-browser Whisper speech recognition (Transformers.js), SRT import and export.
 - **Export**: MP4 export with [MediaBunny](https://github.com/Vanilagy/mediabunny), and JianYing (剪映) draft export.

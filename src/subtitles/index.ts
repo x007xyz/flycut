@@ -144,7 +144,8 @@ export function wrapText(text: string, font: string, maxWidth: number) {
 export function addSubtitles(segments: SubtitleSegment[]) {
   const timeline = useTrackState();
   const player = usePlayerState();
-  const fontSize = Math.round(player.playerWidth / 15);
+  // 按画布短边取字号，横屏时多行字幕也不会太大
+  const fontSize = Math.round(Math.min(player.playerWidth, player.playerHeight) / 15);
   const maxWidth = player.playerWidth * 0.9 - textPadding * 2;
   return segments.map(({ start, end, text }, index) => {
     const track = new TextTrack({
@@ -157,7 +158,8 @@ export function addSubtitles(segments: SubtitleSegment[]) {
     }, Math.round(start * baseFps));
     track.frameCount = Math.max(1, Math.round(end * baseFps) - track.start);
     track.end = track.start + track.frameCount;
-    track.centerY = Math.round(player.playerHeight * 0.35);
+    // 放在画面下方，多行时上移，底边不超过画布高度的 48%
+    track.centerY = Math.min(Math.round(player.playerHeight * 0.35), Math.floor(player.playerHeight * 0.48 - track.drawHeight / 2));
     timeline.addTrack(track, index === 0);
     return track;
   });

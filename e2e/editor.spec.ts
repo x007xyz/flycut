@@ -466,6 +466,38 @@ test('video with a text overlay checks the MP4 output encoder settings', async({
   await expectIdle(page, 0);
 });
 
+test('canvas ratio switches the preview and export size and is saved with the project', async({ page }) => {
+  const videoConfigs: { width: number, height: number }[] = [];
+  await page.exposeFunction('recordVideoEncoderConfig', (config: { width: number, height: number }) => {
+    videoConfigs.push(config);
+  });
+  await page.evaluate(() => {
+    window.VideoEncoder.isConfigSupported = async config => {
+      await (window as any).recordVideoEncoderConfig(config);
+      return { supported: true, config };
+    };
+    window.AudioEncoder.isConfigSupported = async config => ({ supported: false, config });
+  });
+  const playerRatio = () => page.locator('#player').evaluate(element => element.clientWidth / element.clientHeight);
+  expect(await playerRatio()).toBeCloseTo(9 / 16, 2);
+
+  await page.getByText('画布 9:16').click();
+  await page.getByRole('menuitem', { name: '16:9 横屏' }).click();
+  await expect(page.getByText('画布 16:9')).toBeVisible();
+  await expect.poll(playerRatio).toBeCloseTo(16 / 9, 2);
+
+  await page.getByText('文字', { exact: true }).click();
+  await page.getByText('添加文字', { exact: true }).click();
+  await page.getByRole('button', { name: '合成视频' }).click();
+  await expect(page.getByText('当前浏览器不支持 MP4 所需的 H.264 或 Opus 编码，请更换浏览器后重试')).toBeVisible();
+  expect(videoConfigs).toMatchObject([{ width: 1920, height: 1080 }]);
+
+  await expect.poll(() => readDraft(page)).toContain('"cr":"16:9"');
+  await page.reload();
+  await expect(page.getByText('画布 16:9')).toBeVisible();
+  await expect.poll(playerRatio).toBeCloseTo(16 / 9, 2);
+});
+
 async function saveToOpfs(page: Page, filename: string) {
   await page.evaluate(name => {
     (window as any).showSaveFilePicker = async() => {

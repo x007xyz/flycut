@@ -12,14 +12,13 @@ import { AudioTrack } from '@/class/AudioTrack';
 import { VideoTrack } from '@/class/VideoTrack';
 import { baseFps } from '@/data/trackConfig';
 import { buildScene, type Size, type Track } from '@/render/scene';
+import { outputSize } from '@/data/canvas';
 import { drawFrame, loadFrameSources, type FrameLoader } from '@/render/drawFrame';
 import { audioDecoder, imageDecoder, videoDecoder, type MediaAsset } from './webcodecs';
 
 export type { Track };
 
 export const exportOptions = {
-  width: 1080,
-  height: 1920,
   fps: baseFps,
   videoCodec: 'avc1.42E032',
   bitrate: 5e6,
@@ -28,10 +27,11 @@ export const exportOptions = {
   numberOfChannels: 2
 };
 
-export async function isExportSupported() {
+export async function isExportSupported(playerSize: Size) {
   const { VideoEncoder, AudioEncoder } = window;
   if (!VideoEncoder || !AudioEncoder) return false;
-  const { width, height, videoCodec, bitrate, audioBitrate, sampleRate, numberOfChannels } = exportOptions;
+  const { width, height } = outputSize(playerSize);
+  const { videoCodec, bitrate, audioBitrate, sampleRate, numberOfChannels } = exportOptions;
   const video = await VideoEncoder.isConfigSupported({ codec: videoCodec, width, height, bitrate });
   if (!video.supported) return false;
   const audio = await AudioEncoder.isConfigSupported({ codec: 'opus', sampleRate, numberOfChannels, bitrate: audioBitrate });
@@ -88,7 +88,8 @@ async function *videoTimes(track: VideoTrack, asset: MediaAsset) {
 }
 
 export async function renderTimeline(tracks: Track[], playerSize: Size, writable: WritableStream<StreamTargetChunk>) {
-  const { width, height, fps, videoCodec, bitrate, audioBitrate } = exportOptions;
+  const { fps, videoCodec, bitrate, audioBitrate } = exportOptions;
+  const { width, height } = outputSize(playerSize);
   const frameCount = Math.max(0, ...tracks.map(track => track.end));
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext('2d');
