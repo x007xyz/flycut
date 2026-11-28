@@ -16,6 +16,7 @@
       :trackScale="store.trackScale"
       :theme="page.isDark ? 'dark' : 'light'"
       :ui="ui"
+      :trackConfigs="trackConfigs"
       :policies="policies"
       :mediaProvider="mediaProvider"
       :onBeforeCommand="onBeforeCommand"
@@ -50,6 +51,7 @@
   const playerStore = usePlayerState();
   const page = usePageState();
   const ui = { toolbar: false, ruler: true, sidebar: { showTrackActions: false }};
+  const trackConfigs = { text: { type: 'text', height: 24 }};
   const policies = { allowCrossTrackType: false, removeEmptyTracks: true, orderAudioToBottom: true };
   const document = computed(() => toDocument(store.trackList as TrackLineItem[]));
   const editor = shallowRef<NativeTimelineEditor>();
