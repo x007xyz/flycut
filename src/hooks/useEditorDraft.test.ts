@@ -8,9 +8,20 @@ import { restoreDraft, draftKey } from '@/utils/editorDraft';
 vi.mock('@/utils/editorDraft', () => ({
   draftKey: 'flycut.editorDraft',
   captureTimeline: (lines: unknown) => lines,
+  assetIdsOf: () => [],
   encodeDraft: (lines: unknown) => JSON.stringify(lines),
   restoreDraft: vi.fn()
 }));
+
+vi.mock('@/storage/projects', () => ({ projectStore: {
+  meta: async() => null,
+  list: async() => [],
+  create: async(name: string) => ({ id: 'project', name, createdAt: 0, updatedAt: 0, assets: [] }),
+  load: async() => null,
+  save: async(meta: object, _json: string, assets: string[]) => ({ ...meta, assets })
+}}));
+
+vi.mock('@/stores/resourceStore', () => ({ useResourceState: () => ({ load: vi.fn() }) }));
 
 describe('draft history baseline', () => {
   it.each([false, true])('starts restored drafts without undo entries (missing media: %s)', async missingMedia => {

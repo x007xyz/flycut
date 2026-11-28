@@ -17,7 +17,7 @@
     "dev": "vite",
     "dev-ssl": "vite",
     "preview": "vite preview",
-    "test:unit": "vitest --environment jsdom --root src/",
+    "test:unit": "vitest run --environment jsdom --root src/",
     "test:e2e": "playwright test",
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
