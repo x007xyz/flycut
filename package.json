@@ -43,6 +43,7 @@
     "vue3-moveable": "^0.18.1"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@playwright/test": "1.58.2",
     "@rushstack/eslint-patch": "^1.1.4",
     "@tailwindcss/aspect-ratio": "^0.4.2",
@@ -54,6 +55,7 @@
     "@types/node": "^18.11.18",
     "@types/spark-md5": "^3.0.4",
     "@types/webpack-env": "^1.18.0",
+    "@types/ws": "8.18.1",
     "@vitejs/plugin-basic-ssl": "^1.0.1",
     "@vitejs/plugin-vue": "^4.0.0",
     "@vue-hooks-plus/resolvers": "^1.2.1",
@@ -79,6 +81,7 @@
     "vite": "^4.0.0",
     "vite-plugin-vue-devtools": "^7.0.25",
     "vitest": "^0.25.8",
-    "vue-tsc": "^1.0.12"
+    "vue-tsc": "^1.0.12",
+    "ws": "8.18.3"
   }
 }

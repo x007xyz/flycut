@@ -41,6 +41,7 @@
         </ElIcon>
         合成视频
       </ElButton>
+      <AiConnect />
       <el-switch
         class="mr-10"
         size="large"
@@ -66,6 +67,7 @@
   import { saveRenderedVideo } from '@/utils/videoExport';
   import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
   import 'element-plus/es/components/message-box/style/css';
+  import AiConnect from '@/components/AiConnect.vue';
   import { useProjectState } from '@/stores/projectState';
   import { useResourceState } from '@/stores/resourceStore';
   import { packProject, unpackProject } from '@/storage/projectPackage';

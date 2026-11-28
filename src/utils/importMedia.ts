@@ -98,31 +98,32 @@ async function importAsset(file: File, kind: MediaKind, task: PendingAsset): Pro
 }
 
 /** 把素材库中的素材放到时间轴的播放头位置 */
-export async function insertAsset(record: AssetRecord) {
+export async function insertAsset(record: AssetRecord, start = usePlayerState().playStartFrame) {
   const player = usePlayerState();
   const tracks = useTrackState();
   const { id, name, format, width, height, duration } = record;
-  const start = player.playStartFrame;
   const size = { width: player.playerWidth, height: player.playerHeight };
   if (record.kind === 'image') {
     const track = new ImageTrack({ id, url: id, name, format, width, height }, start);
     track.resize(size);
     tracks.addTrack(track);
-    return;
+    return track;
   }
   const url = await assetUrl(id, format);
   if (record.kind === 'audio') {
-    tracks.addTrack(new AudioTrack({ id, url, name, format, duration }, start));
-    return;
+    const track = new AudioTrack({ id, url, name, format, duration }, start);
+    tracks.addTrack(track);
+    return track;
   }
   const track = new VideoTrack({ id, url, name, format, width, height, duration }, start);
   track.resize(size);
   tracks.addTrack(track);
+  return track;
 }
 
 /**
  * 导入视频、图片或音频到素材列表，处理过程在列表中显示为加载卡片。
- * 返回实际导入的文件数，添加到时间轴由 insertAsset 完成。
+ * 返回导入成功的素材，添加到时间轴由 insertAsset 完成。
  */
 export async function importMedia(files: Iterable<File>) {
   const resources = useResourceState();
@@ -135,13 +136,15 @@ export async function importMedia(files: Iterable<File>) {
   if (!supported.length) ElMessage.warning('请导入视频、图片或音频文件');
   else if (skipped.length) ElMessage.warning(`已跳过不支持的文件：${skipped.join('、')}`);
   resources.pending.push(...supported.map(({ task }) => task));
+  const records: AssetRecord[] = [];
   // 依次处理，保持选择顺序
   await supported.reduce((done, { file, kind, task }) => done.then(async() => {
     try {
       const record = await importAsset(file, kind, task);
+      if (record) records.push(record);
     } finally {
       resources.pending = resources.pending.filter(({ key }) => key !== task.key);
     }
   }), Promise.resolve());
-  return supported.length;
+  return records;
 }

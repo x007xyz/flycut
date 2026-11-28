@@ -4,6 +4,7 @@ import { useTrackState } from '@/stores/trackState';
 import { journalKey, useProjectState } from '@/stores/projectState';
 import { useResourceState } from '@/stores/resourceStore';
 import { projectStore } from '@/storage/projects';
+import { markEditorReady } from '@/commands';
 import { assetIdsOf, captureTimeline, draftKey, encodeDraft, restoreDraft } from '@/utils/editorDraft';
 
 /**
@@ -111,6 +112,7 @@ export function useEditorDraft() {
         saved = snapshot();
         if (restoreWarning.value) unrecoveredTimeline = JSON.stringify(lines.value);
         restoring.value = false;
+        markEditorReady();
         // 快照比 OPFS 中的工程新（上次关闭时异步写入可能未完成），补写一次
         if ((journal || migrated) && !restoreWarning.value) {
           await persist(saved, assetIdsOf(lines.value));
