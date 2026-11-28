@@ -63,6 +63,7 @@
   import type { VideoTrack } from '@/class/VideoTrack';
   import type { TextTrack } from '@/class/TextTrack';
   import type { ImageTrack } from '@/class/ImageTrack';
+  import { serialTask } from '@/utils/serialTask';
   const props = defineProps({
     zoom: {
       type: Number,
@@ -186,27 +187,8 @@
       sources.release();
     }
   }
-  // 同一时间只解码绘制一帧，期间的变化在完成后按最新画面再画一次。
-  // 若每次新帧都丢弃未完成的绘制，解码慢于播放帧率时画面永远画不出来，新出现的字幕一直是空白
-  let painting = false;
-  let repaint = false;
-  async function paint() {
-    if (painting) {
-      repaint = true;
-      return;
-    }
-    painting = true;
-    try {
-      do {
-        repaint = false;
-        // eslint-disable-next-line no-await-in-loop
-        await paintLatest();
-      } while (repaint);
-    } finally {
-      // eslint-disable-next-line require-atomic-updates -- 只有持有 painting 的调用会走到这里
-      painting = false;
-    }
-  }
+  // 同一时间只解码绘制一帧，期间的变化在完成后按最新画面再画一次，见 serialTask
+  const paint = serialTask(paintLatest);
   watch([scene, () => props.zoom, () => store.ingLoadingCount], paint, { deep: true, flush: 'post', immediate: true });
   const draggableOptions = reactive({
     target: moveTarget,
