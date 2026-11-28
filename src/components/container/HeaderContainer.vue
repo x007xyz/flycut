@@ -121,13 +121,18 @@
     localStorage.setItem(jianyingRootKey, draftRoot);
     const name = project.current?.name ?? '工程';
     const lines = toRaw(trackState.trackList).map(line => ({ list: toRaw(line.list).map(track => toRaw(track)) }));
-    const blob = await buildJianyingDraft(lines, {
+    const { blob, skipped, animated } = await buildJianyingDraft(lines, {
       name,
       draftRoot,
       player: { width: playerState.playerWidth, height: playerState.playerHeight },
       canvas: { width: exportOptions.width, height: exportOptions.height }
     });
     download(blob, `${safeName(name)}.zip`);
+    if (skipped.length) {
+      ElMessageBox.alert(`剪映没有以下动画的对应效果，草稿中已省略，请在剪映中手动添加：${skipped.join('、')}。其余动画已换成剪映内置的相近动画，缓动曲线不会保留。`, '部分动画未导出', { type: 'warning' });
+    } else if (animated) {
+      ElMessage.info('动画已换成剪映内置的相近动画，缓动曲线不会保留');
+    }
   }
 
   async function importProject() {
