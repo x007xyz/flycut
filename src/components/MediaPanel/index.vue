@@ -4,7 +4,7 @@
       <i class="iconfont icon-shangchuan_line mr-2" />
       导入资源
     </div>
-    <p class="mt-3 text-xs text-gray-500 select-none">支持 MP4 视频、图片和音频。导入后在列表中点 + 、双击或拖到时间轴使用</p>
+    <p class="mt-3 text-xs text-gray-500 select-none">支持视频、图片和音频，导入时会自动压缩并转成 MP4、WebP、M4A 等格式。导入后在列表中点 + 、双击或拖到时间轴使用</p>
     <div class="mt-3 flex-1 overflow-y-auto grid grid-cols-2 gap-2 content-start">
       <div
         v-for="item in resources.pending"

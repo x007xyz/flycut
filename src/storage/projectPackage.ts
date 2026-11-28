@@ -48,9 +48,11 @@ export async function unpackProject(file: Blob): Promise<{ meta: ProjectMeta, as
     else {
       // eslint-disable-next-line no-await-in-loop
       await assetStore.putData(id, new Blob([data]));
+      // 工程包无法证明素材与原文件的对应关系，不保留 sourceHash，免得之后导入本地文件时被替换成包里的素材
+      const { sourceHash: _, ...trusted } = record;
       // eslint-disable-next-line no-await-in-loop
-      await assetStore.putMeta(record);
-      assets.push(record);
+      await assetStore.putMeta(trusted);
+      assets.push(trusted);
     }
     }
   }
