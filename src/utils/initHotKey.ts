@@ -9,6 +9,16 @@ export function isTypingTarget(target: EventTarget | null) {
     || Boolean(target.closest('[role="slider"], [role="spinbutton"], [role="listbox"], [role="menu"]'));
 }
 
+/** 对话框或全屏加载（如合成视频）打开时，快捷键不能修改背后的时间轴 */
+export function isEditorBlocked() {
+  return Array.from(document.querySelectorAll('.el-overlay, .el-loading-mask.is-fullscreen'))
+    .some(element => element.getClientRects().length > 0);
+}
+
+export function shouldSkipShortcut(event: KeyboardEvent) {
+  return isEditorBlocked() || isTypingTarget(document.activeElement) || isTypingTarget(event.target);
+}
+
 export const initHotKey = () => {
   const store = useTrackState();
   const player = usePlayerState();
@@ -21,7 +31,7 @@ export const initHotKey = () => {
   }
   // 捕获阶段处理，先于时间轴自带的方向键处理，避免播放头移动两次
   window.addEventListener('keydown', (event: KeyboardEvent) => {
-    if (isTypingTarget(document.activeElement) || isTypingTarget(event.target)) return;
+    if (shouldSkipShortcut(event)) return;
     const { ctrlKey, metaKey, shiftKey, altKey } = event;
     const key = event.key.toLowerCase();
     const mod = ctrlKey || metaKey;
