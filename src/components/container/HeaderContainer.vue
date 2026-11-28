@@ -38,6 +38,19 @@
           </ElDropdownMenu>
         </template>
       </ElDropdown>
+      <ElDropdown class="ml-6 canvas-ratio" trigger="click" @command="onCanvasRatio">
+        <span class="cursor-pointer select-none text-sm flex items-center">
+          画布 {{ playerState.canvasRatio }}
+          <ElIcon class="ml-1"><ArrowDown /></ElIcon>
+        </span>
+        <template #dropdown>
+          <ElDropdownMenu>
+            <ElDropdownItem v-for="(item, ratio) in canvasRatios" :key="ratio" :command="ratio">
+              {{ item.label }}
+            </ElDropdownItem>
+          </ElDropdownMenu>
+        </template>
+      </ElDropdown>
     </div>
     <div class="flex w-1/3 flex-row-reverse pr-10 items-center">
       <ElButton color="#ff735c" size="default" :disabled="exporting" @click="onGenerate">
@@ -67,7 +80,8 @@
   import { usePageState } from '@/stores/pageState';
   import { useTrackState } from '@/stores/trackState';
   import { usePlayerState } from '@/stores/playerState';
-  import { exportOptions, isExportSupported, renderTimeline, type Track } from '@/utils/renderTimeline';
+  import { canvasRatios, isCanvasRatio, outputSize } from '@/data/canvas';
+  import { isExportSupported, renderTimeline, type Track } from '@/utils/renderTimeline';
   import { buildJianyingDraft, safeName } from '@/jianying';
   import { createFileWriter } from '@/utils/common';
   import { saveRenderedVideo } from '@/utils/videoExport';
@@ -88,6 +102,10 @@
   const resources = useResourceState();
   const otherProjects = computed(() => project.projects.filter(({ id }) => id !== project.current?.id));
 
+  function onCanvasRatio(ratio: string) {
+    if (isCanvasRatio(ratio)) playerState.setCanvasRatio(ratio);
+  }
+
   function download(blob: Blob, name: string) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -99,7 +117,7 @@
 
   async function exportProject() {
     const lines = captureTimeline(trackState.trackList);
-    const json = encodeDraft(lines, trackState.trackScale, playerState.playStartFrame);
+    const json = encodeDraft(lines, trackState.trackScale, playerState.playStartFrame, playerState.canvasRatio);
     const name = project.current?.name ?? '工程';
     download(await packProject(name, json, assetIdsOf(lines)), `${name}.flycut`);
   }
@@ -125,7 +143,7 @@
       name,
       draftRoot,
       player: { width: playerState.playerWidth, height: playerState.playerHeight },
-      canvas: { width: exportOptions.width, height: exportOptions.height }
+      canvas: outputSize({ width: playerState.playerWidth, height: playerState.playerHeight })
     });
     download(blob, `${safeName(name)}.zip`);
     if (skipped.length) {
@@ -206,7 +224,7 @@
 
     const loading = ElLoading.service({ text: '正在合成视频' });
     try {
-      if (!await isExportSupported()) {
+      if (!await isExportSupported({ width: playerState.playerWidth, height: playerState.playerHeight })) {
         ElMessage.error('当前浏览器不支持 MP4 所需的 H.264 或 Opus 编码，请更换浏览器后重试');
         return;
       }

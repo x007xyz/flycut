@@ -27,7 +27,7 @@ export function useEditorDraft() {
   let writing: Promise<void> = Promise.resolve();
 
   function snapshot() {
-    return encodeDraft(lines.value, timeline.trackScale, player.playStartFrame);
+    return encodeDraft(lines.value, timeline.trackScale, player.playStartFrame, player.canvasRatio);
   }
 
   function persist(json: string, assets: string[]) {
@@ -70,7 +70,7 @@ export function useEditorDraft() {
     timer = window.setTimeout(flush, 300);
   }
 
-  watch([lines, () => timeline.trackScale], queueSave);
+  watch([lines, () => timeline.trackScale, () => player.canvasRatio], queueSave);
   watch([() => player.playStartFrame, () => player.isPause], () => {
     if (player.isPause) queueSave();
   });
@@ -96,6 +96,7 @@ export function useEditorDraft() {
       if (json) {
         const draft = await restoreDraft(json);
         if (disposed) return;
+        player.setCanvasRatio(draft.canvas);
         timeline.trackList.splice(0, timeline.trackList.length, ...draft.lines);
         timeline.resetHistory();
         timeline.trackScale = Math.max(0, Math.min(100, draft.trackScale));

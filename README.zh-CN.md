@@ -12,7 +12,7 @@
 ## 功能（v2）
 - **资源库**：导入的视频、图片、音频先进入资源列表，自动压缩转码并生成封面和波形，再从列表拖到时间轴。
 - **时间轴**：基于 [@flycut/timeline-kit](https://github.com/x007xyz/timeline-kit)，支持多轨道、拖动、裁剪、分割、吸附、撤销重做和快捷键。
-- **画布**：预览和导出共用同一套 Canvas 渲染（`drawFrame`），画面一致；在画布上直接拖动、缩放片段。
+- **画布**：预览和导出共用同一套 Canvas 渲染（`drawFrame`），画面一致；在画布上直接拖动、缩放片段。顶部可切换画布比例（9:16、16:9、1:1、3:4、4:3），导出分辨率随之变化（如 16:9 为 1920×1080）。
 - **文字和动画**：文字样式、入场/出场/循环动画（[anime.js](https://animejs.com)）。
 - **字幕**：浏览器内用 Whisper（Transformers.js）识别字幕，支持 SRT 导入导出。
 - **导出**：用 [MediaBunny](https://github.com/Vanilagy/mediabunny) 导出 MP4；也可以导出剪映草稿。
