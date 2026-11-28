@@ -29,11 +29,6 @@
     --el-color-primary-light-8: #51322d;
     --el-color-primary-light-9: #3c2a27;
     --el-color-primary-dark-2: #ff927e;
-    --el-bg-color: #1b1c20;
-    --el-bg-color-overlay: #212227;
-    --el-border-color: #33343b;
-    --el-text-color-primary: #f5f2eb;
-    --el-text-color-regular: #f5f2eb;
 }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .moveable-control-box { --moveable-color: #ff735c; }
