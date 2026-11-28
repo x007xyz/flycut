@@ -115,7 +115,7 @@ export function isEase(ease: unknown) {
   return animationEases.some(({ value }) => value === ease);
 }
 
-function active(spec: AnimationSpec | undefined, kind: AnimationKind) {
+export function active(spec: AnimationSpec | undefined, kind: AnimationKind) {
   return spec && spec.preset !== 'none' && isPreset(kind, spec.preset) && spec.duration > 0 ? spec : undefined;
 }
 

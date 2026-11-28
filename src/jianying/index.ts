@@ -5,8 +5,10 @@ import { ImageTrack } from '@/class/ImageTrack';
 import { TextTrack } from '@/class/TextTrack';
 import { VideoTrack } from '@/class/VideoTrack';
 import { baseFps } from '@/data/trackConfig';
+import { active, animationPresets, type AnimationKind } from '@/render/animation';
 import type { Size, Track } from '@/render/scene';
 import { assetStore } from '@/storage/assets';
+import { jianyingAnimations } from './animations';
 import contentTemplate from './draftContent.json';
 import metaTemplate from './draftMeta.json';
 
@@ -99,12 +101,55 @@ function clip(track: VideoTrack | ImageTrack | TextTrack, scale: number, player:
   };
 }
 
-/** 生成剪映草稿文件夹的 zip：draft_content.json、draft_meta_info.json 和 materials/ 下的素材 */
+/** 生成剪映草稿文件夹的 zip：draft_content.json、draft_meta_info.json 和 materials/ 下的素材；skipped 是剪映没有对应效果、未导出的动画，animated 是已导出的动画数 */
 export async function buildJianyingDraft(lines: { list: Track[] }[], { name, draftRoot, player, canvas }: JianyingOptions) {
   const folder = safeName(name);
   const root = draftRoot?.trim().replace(/[\\/]+$/, '');
   const files: Zippable = {};
-  const materials = { videos: [] as Json[], audios: [] as Json[], texts: [] as Json[], speeds: [] as Json[] };
+  const materials = { videos: [] as Json[], audios: [] as Json[], texts: [] as Json[], speeds: [] as Json[], material_animations: [] as Json[] };
+  const skipped = new Set<string>();
+  let animated = 0;
+
+  /** 把 flycut 动画换成剪映内置的相近动画；没有对应动画的记下来提示用户 */
+  function animate(segment: Json, track: VideoTrack | ImageTrack | TextTrack) {
+    const target = track instanceof TextTrack ? 'text' : 'video';
+    const total = (segment.target_timerange as { duration: number }).duration;
+    const specs = { in: active(track.animations?.in, 'in'), out: active(track.animations?.out, 'out'), loop: active(track.animations?.loop, 'loop') };
+    // 与 motionAt 一致：入场和出场（无论剪映有没有对应动画）超出片段时长时按比例缩短，循环在两者之间
+    const inDuration = Math.round((specs.in?.duration ?? 0) * 1e6);
+    const outDuration = Math.round((specs.out?.duration ?? 0) * 1e6);
+    const ratio = Math.min(1, total / (inDuration + outDuration || 1));
+    const ranges = {
+      in: { start: 0, duration: Math.round(inDuration * ratio) },
+      out: { start: total - Math.round(outDuration * ratio), duration: Math.round(outDuration * ratio) },
+      loop: { start: Math.round(inDuration * ratio), duration: total - Math.round(inDuration * ratio) - Math.round(outDuration * ratio) }
+    };
+    const animations: Json[] = [];
+    for (const kind of ['in', 'out', 'loop'] as AnimationKind[]) {
+      const spec = specs[kind];
+      const meta = spec && jianyingAnimations[target][kind]?.[spec.preset];
+      const range = ranges[kind];
+      if (meta && range.duration > 0) {
+        const [title, resourceId, effectId] = meta;
+        animations.push({
+          anim_adjust_params: null, platform: 'all',
+          panel: target === 'video' ? 'video' : '', material_type: target === 'video' ? 'video' : 'sticker',
+          name: title, id: effectId, type: kind, resource_id: resourceId, ...range
+        });
+      } else if (spec) {
+        const label = animationPresets[kind].find(({ value }) => value === spec.preset)?.label ?? spec.preset;
+        // 剪映的循环动画只在入场和出场之间播放，两者占满片段时无法保留
+        const reason = meta ? '（入场和出场占满了片段）' : '';
+        skipped.add(`${target === 'text' ? '文字' : '画面'}${kind === 'loop' ? '循环' : ''}「${label}」${reason}`);
+      }
+    }
+    if (!animations.length) return segment;
+    animated += animations.length;
+    const id = uuid();
+    materials.material_animations.push({ id, type: 'sticker_animation', multi_language_current: 'none', animations });
+    (segment.extra_material_refs as string[]).push(id);
+    return segment;
+  }
   const media = new Map<string, string>();
   const tracks: Json[] = [];
 
@@ -177,7 +222,7 @@ export async function buildJianyingDraft(lines: { list: Track[] }[], { name, dra
       materials.speeds.push({ curve_speed: null, id: speedId, mode: 0, speed: 1, type: 'speed' });
       if (track instanceof TextTrack) {
         type = 'text';
-        segments.push({ ...baseSegment(textMaterial(track), track, speedId, renderIndex), source_timerange: null, clip: clip(track, 1, player), uniform_scale: { on: true, value: 1 }});
+        segments.push(animate({ ...baseSegment(textMaterial(track), track, speedId, renderIndex), source_timerange: null, clip: clip(track, 1, player), uniform_scale: { on: true, value: 1 }}, track));
       } else if (track instanceof AudioTrack) {
         type = 'audio';
         segments.push({
@@ -189,7 +234,7 @@ export async function buildJianyingDraft(lines: { list: Track[] }[], { name, dra
       } else if (track instanceof VideoTrack || track instanceof ImageTrack) {
         // 剪映缩放 1 表示素材完整放进画布
         const fit = Math.min(player.width / track.source.width, player.height / track.source.height) * track.source.width;
-        segments.push({
+        segments.push(animate({
           // eslint-disable-next-line no-await-in-loop -- 素材按顺序写入 zip
           ...baseSegment(await mediaMaterial(track), track, speedId, renderIndex),
           ...(track instanceof VideoTrack ? timing(track, track.offsetL, track.source.duration) : timing(track, 0)),
@@ -197,7 +242,7 @@ export async function buildJianyingDraft(lines: { list: Track[] }[], { name, dra
           clip: clip(track, track.drawWidth / fit, player),
           uniform_scale: { on: true, value: 1 },
           hdr_settings: { intensity: 1, mode: 1, nits: 1000 }
-        });
+        }, track));
       }
     }
     tracks.push({ attribute: 0, flag: 0, id: uuid(), is_default_name: true, name: '', segments, type });
@@ -224,5 +269,5 @@ export async function buildJianyingDraft(lines: { list: Track[] }[], { name, dra
   };
   files[`${folder}/draft_content.json`] = strToU8(JSON.stringify(content));
   files[`${folder}/draft_meta_info.json`] = strToU8(JSON.stringify(meta));
-  return new Blob([zipSync(files)], { type: 'application/zip' });
+  return { blob: new Blob([zipSync(files)], { type: 'application/zip' }), skipped: [...skipped], animated };
 }
