@@ -41,7 +41,7 @@
     </div>
     <div class="flex w-1/3 flex-row-reverse pr-10 items-center">
       <ElButton color="#ff735c" size="default" :disabled="exporting" @click="onGenerate">
-        <ElIcon :size="size" color="#fff" class="mr-1">
+        <ElIcon :size="size" class="mr-1">
           <Download />
         </ElIcon>
         合成视频
