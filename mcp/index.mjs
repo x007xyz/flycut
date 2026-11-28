@@ -2,7 +2,7 @@
 /* eslint-env node */
 // FlyCut 本地 MCP 服务：通过 stdio 与 AI 客户端通信，通过 localhost WebSocket 把命令转发给浏览器中打开的编辑器
 import { chmod, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { randomInt, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
@@ -26,15 +26,22 @@ const mimeTypes = {
 
 const log = (...args) => console.error('[flycut-mcp]', ...args);
 
-// 配对码：编辑器连接后必须先发送配对码，防止本机其他程序冒充编辑器接管连接。
-// 保存在只有当前用户可读的文件里，重启服务后不变，浏览器只需输入一次
+// 配对码：编辑器和服务互相证明知道配对码后才建立连接。双方只交换随机数和 HMAC，配对码本身不经过连接，
+// 本机其他程序既不能冒充编辑器，也不能在服务没启动时占用端口骗取配对码。
+// 配对码保存在只有当前用户可读的文件里，重启服务后不变，浏览器只需输入一次
 const codeAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const codeFile = process.env.FLYCUT_MCP_CODE_FILE || path.join(homedir(), '.flycut', 'mcp-pairing-code');
+const normalizeCode = code => code.replace(/[\s-]/g, '').toUpperCase();
+const minCodeLength = 8;
 async function loadPairingCode() {
-  if (process.env.FLYCUT_MCP_CODE) return process.env.FLYCUT_MCP_CODE.trim();
+  if (process.env.FLYCUT_MCP_CODE !== undefined) {
+    const code = normalizeCode(process.env.FLYCUT_MCP_CODE);
+    if (code.length < minCodeLength) throw new Error(`FLYCUT_MCP_CODE must have at least ${minCodeLength} letters or digits`);
+    return code;
+  }
   try {
-    const saved = (await readFile(codeFile, 'utf8')).trim();
-    if (saved.length >= 8) return saved;
+    const saved = normalizeCode(await readFile(codeFile, 'utf8'));
+    if (saved.length >= minCodeLength) return saved;
   } catch {
     // 首次运行时生成
   }
@@ -45,12 +52,14 @@ async function loadPairingCode() {
   return code;
 }
 const pairingCode = await loadPairingCode();
-const normalizeCode = code => String(code ?? '').replace(/[\s-]/g, '')
-.toUpperCase();
-function codeMatches(code) {
-  const expected = Buffer.from(normalizeCode(pairingCode));
-  const actual = Buffer.from(normalizeCode(code));
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
+const proof = (role, clientNonce, serverNonce) => createHmac('sha256', pairingCode).update(`flycut-pair:${role}:${clientNonce}:${serverNonce}`)
+  .digest('hex');
+const isNonce = value => typeof value === 'string' && /^[0-9a-f]{32,128}$/.test(value);
+function proofMatches(actual, expected) {
+  if (typeof actual !== 'string') return false;
+  const a = Buffer.from(actual);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 const pairTimeoutMs = 5000;
 
@@ -83,8 +92,15 @@ wss.on('listening', () => log(`waiting for the editor on ws://127.0.0.1:${port},
 wss.on('error', error => log('WebSocket server error:', error.message));
 wss.on('connection', socket => {
   let paired = false;
-  // 未在限定时间内发送正确配对码的连接直接关闭，不会顶替已连接的编辑器
+  let clientNonce = '';
+  const serverNonce = randomBytes(16).toString('hex');
+  // 未在限定时间内完成配对的连接直接关闭，不会顶替已连接的编辑器
   const pairTimer = setTimeout(() => socket.close(4001, 'Pairing code required'), pairTimeoutMs);
+  const reject = () => {
+    clearTimeout(pairTimer);
+    log('rejected an editor connection with a wrong pairing code');
+    socket.close(4001, 'Wrong pairing code');
+  };
   socket.on('message', raw => {
     let message;
     try {
@@ -93,31 +109,52 @@ wss.on('connection', socket => {
       return;
     }
     if (!paired) {
-      clearTimeout(pairTimer);
-      if (message?.type !== 'pair' || !codeMatches(message.code)) {
-        log('rejected an editor connection with a wrong pairing code');
-        socket.close(4001, 'Wrong pairing code');
+      // 第一步：编辑器发来随机数，服务回复自己的随机数和证明，编辑器据此确认对方知道配对码
+      if (!clientNonce) {
+        if (message?.type !== 'hello' || !isNonce(message.nonce)) {
+          reject();
+          return;
+        }
+        clientNonce = message.nonce;
+        socket.send(JSON.stringify({ type: 'challenge', nonce: serverNonce, proof: proof('server', clientNonce, serverNonce) }));
         return;
       }
+      // 第二步：编辑器回复证明
+      if (message?.type !== 'pair' || !proofMatches(message.proof, proof('client', clientNonce, serverNonce))) {
+        reject();
+        return;
+      }
+      clearTimeout(pairTimer);
       paired = true;
-      if (editor) editor.close(4000, 'Replaced by a newer editor tab');
+      if (editor) {
+        // 旧标签页还没完成的命令直接失败，不让后面的命令排在它后面等到超时
+        pending.forEach(request => {
+          clearTimeout(request.timer);
+          request.reject(new Error('Another FlyCut tab took over the connection'));
+        });
+        pending.clear();
+        editor.close(4000, 'Replaced by a newer editor tab');
+      }
       editor = socket;
       socket.send(JSON.stringify({ type: 'paired' }));
       log('editor connected');
       return;
     }
-    const request = pending.get(message.id);
+    const request = pending.get(message?.id);
     if (!request) return;
     pending.delete(message.id);
     clearTimeout(request.timer);
-    if (message.error) request.reject(new Error(message.error));
+    if (message.error) request.reject(new Error(String(message.error)));
     else request.resolve(message.result);
   });
   socket.on('close', () => {
     clearTimeout(pairTimer);
     if (editor !== socket) return;
     editor = null;
-    pending.forEach(request => request.reject(new Error('The FlyCut editor disconnected')));
+    pending.forEach(request => {
+      clearTimeout(request.timer);
+      request.reject(new Error('The FlyCut editor disconnected'));
+    });
     pending.clear();
     log('editor disconnected');
   });

@@ -14,6 +14,19 @@ export const bridgePort = Number(localStorage.getItem(portKey)) || 4010;
 let socket: WebSocket | null = null;
 let retry: number | undefined;
 
+const normalizeCode = (code: string) => code.replace(/[\s-]/g, '').toUpperCase();
+
+function randomHex() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function hmac(key: string, message: string) {
+  const encoder = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey('raw', encoder.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
+  return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
 export function pairingCode() {
   return localStorage.getItem(codeKey) ?? '';
 }
@@ -31,20 +44,34 @@ function connect() {
   bridgeStatus.value = 'connecting';
   const ws = new WebSocket(`ws://127.0.0.1:${bridgePort}`);
   socket = ws;
+  const clientNonce = randomHex();
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'pair', code: pairingCode() }));
+    ws.send(JSON.stringify({ type: 'hello', nonce: clientNonce }));
   };
   ws.onmessage = async({ data }) => {
-    let request: { id: number, name: string, args?: Record<string, unknown>, type?: string };
+    let request: { id: number, name: string, args?: Record<string, unknown>, type?: string, nonce?: string, proof?: string };
     try {
       request = JSON.parse(String(data));
     } catch {
+      return;
+    }
+    if (request.type === 'challenge') {
+      // 先确认服务知道配对码，再发出自己的证明；配对码本身从不发送
+      const code = normalizeCode(pairingCode());
+      const serverNonce = String(request.nonce ?? '');
+      const expected = await hmac(code, `flycut-pair:server:${clientNonce}:${serverNonce}`);
+      if (request.proof !== expected) {
+        ws.close(4001, 'The server does not know the pairing code');
+        return;
+      }
+      ws.send(JSON.stringify({ type: 'pair', proof: await hmac(code, `flycut-pair:client:${clientNonce}:${serverNonce}`) }));
       return;
     }
     if (request.type === 'paired') {
       bridgeStatus.value = 'connected';
       return;
     }
+    if (bridgeStatus.value !== 'connected') return;
     try {
       const result = await runCommand(request.name, request.args ?? {});
       ws.send(JSON.stringify({ id: request.id, result }));
