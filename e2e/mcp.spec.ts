@@ -3,15 +3,17 @@ import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { WebSocketServer } from 'ws';
 
 const fixture = path.resolve('e2e/fixtures/sample.mp4');
 const port = '4011';
+const pairingCode = 'TESTCODE42';
 
 async function startServer() {
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [path.resolve('mcp/index.mjs')],
-    env: { ...process.env, FLYCUT_MCP_PORT: port } as Record<string, string>,
+    env: { ...process.env, FLYCUT_MCP_PORT: port, FLYCUT_MCP_CODE: pairingCode } as Record<string, string>,
     stderr: 'pipe'
   });
   const client = new Client({ name: 'flycut-e2e', version: '1.0.0' });
@@ -32,10 +34,11 @@ test('the local MCP server edits the project open in the browser', async({ page 
     expect(tools.map(({ name }) => name)).toEqual(expect.arrayContaining(['get_timeline', 'add_text', 'import_file', 'export_video']));
     await expect(call('get_timeline')).rejects.toThrow('No FlyCut editor is connected');
 
-    await page.addInitScript(mcpPort => {
+    await page.addInitScript(({ mcpPort, code }) => {
       localStorage.setItem('flycut.mcpBridge', '1');
       localStorage.setItem('flycut.mcpPort', mcpPort);
-    }, port);
+      localStorage.setItem('flycut.mcpCode', code);
+    }, { mcpPort: port, code: pairingCode });
     await page.goto('/');
     await expect(page.locator('.ai-status')).toHaveAttribute('data-status', 'connected');
 
@@ -101,6 +104,56 @@ test('the local MCP server edits the project open in the browser', async({ page 
     expect(exported.duration).toBe((await call('get_timeline')).duration);
   } finally {
     await client.close();
+  }
+});
+
+test('the local MCP server only accepts an editor with the pairing code', async({ page }) => {
+  const { client, call } = await startServer();
+  try {
+    expect(await call('get_pairing_code')).toEqual({ pairingCode });
+    await page.addInitScript(mcpPort => {
+      localStorage.setItem('flycut.mcpBridge', '1');
+      localStorage.setItem('flycut.mcpPort', mcpPort);
+      localStorage.setItem('flycut.mcpCode', 'WRONGCODE1');
+    }, port);
+    await page.goto('/');
+    await expect(page.locator('.ai-status')).toHaveAttribute('data-status', 'unpaired');
+    await expect(call('get_timeline')).rejects.toThrow('No FlyCut editor is connected');
+
+    await page.locator('.ai-connect').click();
+    await page.locator('.mcp-pairing-code input').fill(pairingCode.toLowerCase());
+    await page.getByRole('button', { name: '配对' }).click();
+    await expect(page.locator('.ai-status')).toHaveAttribute('data-status', 'connected');
+    expect(await call('get_timeline')).toMatchObject({ clips: [] });
+  } finally {
+    await client.close();
+  }
+});
+
+test('the editor does not reveal the pairing code to a server that cannot prove it', async({ page }) => {
+  const messages: string[] = [];
+  const fake = new WebSocketServer({ host: '127.0.0.1', port: Number(port) });
+  fake.on('connection', socket => {
+    socket.on('message', raw => {
+      messages.push(String(raw));
+      socket.send(JSON.stringify({ type: 'challenge', nonce: 'ab'.repeat(16), proof: '00'.repeat(32) }));
+    });
+  });
+  try {
+    await page.addInitScript(({ mcpPort, code }) => {
+      localStorage.setItem('flycut.mcpBridge', '1');
+      localStorage.setItem('flycut.mcpPort', mcpPort);
+      localStorage.setItem('flycut.mcpCode', code);
+    }, { mcpPort: port, code: pairingCode });
+    await page.goto('/');
+    await expect(page.locator('.ai-status')).toHaveAttribute('data-status', 'unpaired');
+    expect(messages).toHaveLength(1);
+    expect(JSON.parse(messages[0])).toEqual({ type: 'hello', nonce: expect.stringMatching(/^[0-9a-f]{32}$/) });
+    expect(messages.join()).not.toContain(pairingCode);
+  } finally {
+    await new Promise(resolve => {
+      fake.close(resolve);
+    });
   }
 });
 
