@@ -3,7 +3,7 @@
     <div
       class="float-left h-9 w-32 flex flex-row flex-nowrap items-center justify-around"
     >
-      <div v-for="item of icons" :key="item.title" @click="handlerIcon(item)">
+      <div v-for="item of icons" :key="item.label" @click="handlerIcon(item)">
         <el-tooltip
           :disabled="item.disable"
           class="bg-gray-400"
@@ -72,24 +72,29 @@
     if (newVal < sliderProps.min) newVal = sliderProps.min;
     modelValue.value = newVal;
   }
+  const mod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
   const icons = computed(() => [
     {
-      title: '撤销',
+      label: '撤销',
+      title: `撤销 (${mod}Z)`,
       disable: !trackStore.canUndo,
       icon: 'UndoIcon'
     },
     {
-      title: '重做',
+      label: '重做',
+      title: `重做 (${mod}Shift+Z)`,
       disable: !trackStore.canRedo,
       icon: 'RedoIcon'
     },
     {
-      title: '分割',
+      label: '分割',
+      title: `分割 (${mod}B)`,
       disable: trackStore.selectTrackItem.line === -1 && trackStore.selectTrackItem.index === -1,
       icon: 'SplitIcon'
     },
     {
-      title: '删除',
+      label: '删除',
+      title: '删除 (Delete)',
       disable: trackStore.selectTrackItem.line === -1 && trackStore.selectTrackItem.index === -1,
       icon: 'DeleteIcon'
     }

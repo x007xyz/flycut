@@ -1,35 +1,83 @@
 import { useTrackState } from '@/stores/trackState';
-const store = useTrackState();
+import { usePlayerState } from '@/stores/playerState';
+import { baseFps } from '@/data/trackConfig';
+
+/** 焦点在输入框、滑块等自己处理按键的控件上时不处理快捷键 */
+export function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return ['input', 'textarea', 'select'].includes(target.tagName.toLowerCase()) || target.isContentEditable
+    || Boolean(target.closest('[role="slider"], [role="spinbutton"], [role="listbox"], [role="menu"]'));
+}
+
+/** 对话框或全屏加载（如合成视频）打开时，快捷键不能修改背后的时间轴 */
+export function isEditorBlocked() {
+  return Array.from(document.querySelectorAll('.el-overlay, .el-loading-mask.is-fullscreen'))
+    .some(element => element.getClientRects().length > 0);
+}
+
+export function shouldSkipShortcut(event: KeyboardEvent) {
+  return isEditorBlocked() || isTypingTarget(document.activeElement) || isTypingTarget(event.target);
+}
+
 export const initHotKey = () => {
-    // 注册全局事件
-    window.onkeydown = (event: KeyboardEvent) => {
-      // 判断按键是否在输入框中
-      let activeElement = document.activeElement;
-      if (activeElement && (['input', 'textarea'].includes(activeElement.tagName.toLowerCase()) || activeElement.isContentEditable)) {
-        return;
-      }
-      const { ctrlKey, metaKey, shiftKey, key } = event;
-      if ((ctrlKey || metaKey) && ['z', 'y'].includes(key.toLowerCase())) {
+  const store = useTrackState();
+  const player = usePlayerState();
+  function seek(frame: number) {
+    player.isPause = true;
+    player.playStartFrame = Math.max(0, Math.min(frame, store.frameCount));
+  }
+  function zoom(step: number) {
+    store.trackScale = Math.max(0, Math.min(100, store.trackScale + step));
+  }
+  // 捕获阶段处理，先于时间轴自带的方向键处理，避免播放头移动两次
+  window.addEventListener('keydown', (event: KeyboardEvent) => {
+    if (shouldSkipShortcut(event)) return;
+    const { ctrlKey, metaKey, shiftKey, altKey } = event;
+    const key = event.key.toLowerCase();
+    const mod = ctrlKey || metaKey;
+    if (mod && (key === 'z' || key === 'y')) {
+      event.preventDefault();
+      if (key === 'y' || shiftKey) store.redo();
+      else store.undo();
+      return;
+    }
+    if (mod && key === 'b') {
+      event.preventDefault();
+      store.splitSelected(player.playStartFrame, { width: player.playerWidth, height: player.playerHeight });
+      return;
+    }
+    if (mod && (key === '=' || key === '+' || key === '-')) {
+      event.preventDefault();
+      zoom(key === '-' ? -10 : 10);
+      return;
+    }
+    if (mod || altKey) return;
+    switch (key) {
+      case 'backspace':
+      case 'delete':
         event.preventDefault();
-        if (key.toLowerCase() === 'y' || shiftKey) store.redo();
-        else store.undo();
-        return;
-      }
-      switch (key) {
-          case 'Backspace':
-              event.preventDefault();
-              store.flushHistory();
-              // 删除操作
-              if (store.selectTrackItem.line !== -1 && store.selectTrackItem.index !== -1) {
-                  store.removeTrack(store.selectTrackItem.line, store.selectTrackItem.index);
-                  store.selectTrackItem.line = -1;
-                  store.selectTrackItem.index = -1;
-              }
-              break;
-          case 'Enter':
-              break;
-          default:
-              break;
-      }
-    };
+        store.removeSelected();
+        break;
+      case 'arrowleft':
+      case 'arrowright':
+        event.preventDefault();
+        event.stopPropagation();
+        seek(player.playStartFrame + (key === 'arrowleft' ? -1 : 1) * (shiftKey ? baseFps : 1));
+        break;
+      case 'home':
+        event.preventDefault();
+        seek(0);
+        break;
+      case 'end':
+        event.preventDefault();
+        seek(store.frameCount);
+        break;
+      case 'escape':
+        store.selectTrackItem.line = -1;
+        store.selectTrackItem.index = -1;
+        break;
+      default:
+        break;
+    }
+  }, { capture: true });
 };

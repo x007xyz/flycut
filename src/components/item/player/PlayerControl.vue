@@ -19,6 +19,8 @@
   import { usePlayerState } from '@/stores/playerState';
   import { useTrackState } from '@/stores/trackState';
   import { getCurrentTrackItemList, isOfCanPlayType } from '@/utils/trackUtils';
+  import { shouldSkipShortcut } from '@/utils/initHotKey';
+  import { useEventListener } from '@vueuse/core';
   import type { AudioTrack } from '@/class/AudioTrack';
   import type { VideoTrack } from '@/class/VideoTrack';
   const props = defineProps({
@@ -71,6 +73,16 @@
       }
     }, timeStamp);
   }
+  // 空格键播放/暂停
+  useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+    if (event.key !== ' ' || event.defaultPrevented || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (shouldSkipShortcut(event)) return;
+    // 焦点在按钮、开关等控件上时，空格保留原生的点击行为
+    if (event.target instanceof HTMLElement && event.target.closest('button, a[href], [role="button"], [role="switch"], [role="checkbox"], [role="tab"], [role="radio"]')) return;
+    event.preventDefault();
+    if (store.isPause) startPlay();
+    else pauseVideo();
+  });
   // 在一些操作时，需要暂停播放
   watch(() => store.isPause, () => {
     if (store.isPause) {

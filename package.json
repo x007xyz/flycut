@@ -28,7 +28,7 @@
   "dependencies": {
     "@ckpack/vue-color": "^1.4.1",
     "@element-plus/icons-vue": "^2.0.10",
-    "@flycut/timeline-kit": "0.2.0",
+    "@flycut/timeline-kit": "0.2.1",
     "@huggingface/transformers": "3.7.1",
     "@vueuse/core": "^10.9.0",
     "animejs": "4.5.0",
