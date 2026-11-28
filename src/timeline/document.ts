@@ -10,7 +10,9 @@ function trimmable(track: Track): track is Extract<Track, { offsetL: number }> {
 }
 
 function clipOf(track: Track): TimelineClip {
-  const clip: TimelineClip = { id: track.id, type: track.type, name: track.name, startMs: frameMs(track.start), endMs: frameMs(track.end) };
+  // 文字片段直接显示文字内容
+  const name = 'content' in track ? track.content.replace(/\s+/g, ' ').trim() || track.name : track.name;
+  const clip: TimelineClip = { id: track.id, type: track.type, name, startMs: frameMs(track.start), endMs: frameMs(track.end) };
   if (trimmable(track)) {
     clip.durationMs = frameMs(track.frameCount);
     clip.trim = { startMs: frameMs(track.offsetL), endMs: frameMs(track.frameCount - track.offsetR) };

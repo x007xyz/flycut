@@ -118,6 +118,24 @@
 </script>
 
 <style>
+  .tk-track-clip[data-type="text"] .tk-default-clip {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0 6px;
+  }
+  .tk-track-clip[data-type="text"] .tk-default-clip-title {
+    overflow: hidden;
+    color: #fff;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .tk-track-clip[data-type="text"] .tk-default-clip-meta {
+    display: none;
+  }
   .dark .tk-timeline-editor[data-theme="dark"] {
     --tk-bg: rgb(32, 32, 35);
     --tk-surface: rgb(32, 32, 35);
