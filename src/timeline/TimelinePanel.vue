@@ -136,12 +136,38 @@
   .tk-track-clip[data-type="text"] .tk-default-clip-meta {
     display: none;
   }
+  .tk-timeline-editor {
+    --tk-accent: #ff735c;
+    --tk-border-strong: #ff735c;
+  }
+  .tk-timeline-editor[data-theme="light"] {
+    --tk-bg: #f5f2eb;
+    --tk-surface: #f5f2eb;
+    --tk-panel: #f5f2eb;
+    --tk-ruler-bg: #ece8df;
+    --tk-ruler-text: #595653;
+    --tk-ruler-long: #c9c4ba;
+    --tk-ruler-short: #b8b6be;
+    --tk-ruler-sub: #77717a;
+    --tk-ruler-focus: #ffd5ce;
+    --tk-track: #ece8df;
+    --tk-border: #dcd7cc;
+    --tk-text: #111215;
+    --tk-muted: #595653;
+  }
   .dark .tk-timeline-editor[data-theme="dark"] {
-    --tk-bg: rgb(32, 32, 35);
-    --tk-surface: rgb(32, 32, 35);
-    --tk-panel: rgb(32, 32, 35);
-    --tk-ruler-bg: rgb(32, 32, 35);
-    --tk-track: rgb(55, 55, 58);
-    --tk-border: rgb(18, 18, 18);
+    --tk-bg: #1b1c20;
+    --tk-surface: #1b1c20;
+    --tk-panel: #1b1c20;
+    --tk-ruler-bg: #1b1c20;
+    --tk-ruler-text: #b8b6be;
+    --tk-ruler-long: #33343b;
+    --tk-ruler-short: #77717a;
+    --tk-ruler-sub: #77717a;
+    --tk-ruler-focus: #653a34;
+    --tk-track: #212227;
+    --tk-border: #111215;
+    --tk-text: #f5f2eb;
+    --tk-muted: #b8b6be;
   }
 </style>

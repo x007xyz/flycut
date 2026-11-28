@@ -7,7 +7,7 @@
     <ElSelect v-model="language" size="default" :disabled="busy">
       <ElOption v-for="item in asrLanguages" :key="item.id" :label="item.label" :value="item.id" />
     </ElSelect>
-    <ElButton class="subtitle-generate" color="#683CFD" :loading="busy" @click="onGenerate">识别字幕</ElButton>
+    <ElButton class="subtitle-generate" color="#ff735c" :loading="busy" @click="onGenerate">识别字幕</ElButton>
     <p v-if="busy" class="subtitle-progress text-xs text-gray-500">{{ progressText }}</p>
     <div class="flex gap-2">
       <ElButton class="flex-1 subtitle-import" :disabled="busy" @click="srtInput?.click()">导入 SRT</ElButton>
