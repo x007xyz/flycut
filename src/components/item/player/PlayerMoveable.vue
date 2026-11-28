@@ -149,20 +149,16 @@
     if (el) canvases.set(id, el as HTMLCanvasElement);
     else canvases.delete(id);
   }
-  let renderId = 0;
   const painted = { key: '' };
-  async function paint() {
+  async function paintLatest() {
     if (store.ingLoadingCount !== 0) return;
     const current = toRaw(scene.value);
     const ratio = (window.devicePixelRatio || 1) * props.zoom;
     // 动画变换由 CSS 完成，不需要重绘画面
     const key = `${ratio}:${frameKey({ ...current, layers: current.layers.map(({ motion, ...layer }) => layer as Layer) })}`;
     if (key === painted.key) return;
-    const id = ++renderId;
     const sources = await loadFrameSources(current);
     try {
-      // 较新的绘制请求已经开始，丢弃过期帧
-      if (id !== renderId) return;
       current.layers.forEach((layer, index) => {
         const canvas = canvases.get(layer.clipId);
         const track = trackIndex.value.get(layer.clipId)?.track;
@@ -184,10 +180,31 @@
         ctx.setTransform(scaleX, 0, 0, scaleY, -x * scaleX, -y * scaleY);
         drawLayer(ctx, layer, sources.images[index]);
       });
-      // eslint-disable-next-line require-atomic-updates -- 过期请求已在上方通过 renderId 丢弃
+      // eslint-disable-next-line require-atomic-updates -- 同一时间只有一次绘制
       painted.key = key;
     } finally {
       sources.release();
+    }
+  }
+  // 同一时间只解码绘制一帧，期间的变化在完成后按最新画面再画一次。
+  // 若每次新帧都丢弃未完成的绘制，解码慢于播放帧率时画面永远画不出来，新出现的字幕一直是空白
+  let painting = false;
+  let repaint = false;
+  async function paint() {
+    if (painting) {
+      repaint = true;
+      return;
+    }
+    painting = true;
+    try {
+      do {
+        repaint = false;
+        // eslint-disable-next-line no-await-in-loop
+        await paintLatest();
+      } while (repaint);
+    } finally {
+      // eslint-disable-next-line require-atomic-updates -- 只有持有 painting 的调用会走到这里
+      painting = false;
     }
   }
   watch([scene, () => props.zoom, () => store.ingLoadingCount], paint, { deep: true, flush: 'post', immediate: true });
