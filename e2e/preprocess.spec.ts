@@ -89,3 +89,18 @@ test('imports compress oversized images and lossless audio and convert WebM to M
   const clip = await call('add_clip', { assetId: byKind('video').id, start: 0 });
   expect(clip.end).toBeGreaterThan(0.9);
 });
+
+test('SVG imports are rasterized to WebP', async({ page }) => {
+  await page.goto('/');
+  await page.locator('.tabsToggle').getByText('资源', { exact: true })
+    .click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByText('导入资源', { exact: true }).click();
+  await (await chooser).setFiles(path.resolve('public/favicon.svg'));
+  const card = page.locator('.media-card[title="favicon.webp"]');
+  await expect(card).toHaveCount(1, { timeout: 30000 });
+  await expect(card.locator('img')).toBeVisible();
+  await card.hover();
+  await card.locator('.media-add').click();
+  await expect(page.locator('.tk-track-clip[data-type="image"]')).toHaveCount(1);
+});

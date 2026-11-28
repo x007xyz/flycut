@@ -134,7 +134,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
   }
-  .tk-track-clip[data-type="text"] .tk-default-clip-meta {
+  .tk-track-clip[data-type="text"] .tk-default-clip-meta, .tk-track-clip[data-type="image"] .tk-default-clip-meta {
     display: none;
   }
   .tk-timeline-editor .tk-default-clip[data-type="image"] {

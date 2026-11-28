@@ -1,18 +1,31 @@
-# fly-cut
+# Flycut
 
 ## 简介
-基于Webcodecs + Vue3实现的Web端剪辑工具 <br/>
+在浏览器里运行的视频剪辑工具（Vue 3 + WebCodecs），素材和工程都保存在本地，不上传服务器。<br/>
 如果有用请 🌟 Star 🌟 支持一下哟 🫣 <br/>
 
 网站：[flycut.co](https://flycut.co)
 
-## 功能
-![](coverImage/map.png)
-
-FlyCut 会自动在当前浏览器中保存最近一次的时间轴和导入素材。重新打开同一站点即可继续编辑；清除站点数据会删除本地草稿。
-
 ## 预览
 ![](coverImage/preview.gif)
+
+## 功能（v2）
+- **资源库**：导入的视频、图片、音频先进入资源列表，自动压缩转码并生成封面和波形，再从列表拖到时间轴。
+- **时间轴**：基于 [@flycut/timeline-kit](https://github.com/x007xyz/timeline-kit)，支持多轨道、拖动、裁剪、分割、吸附、撤销重做和快捷键。
+- **画布**：预览和导出共用同一套 Canvas 渲染（`drawFrame`），画面一致；在画布上直接拖动、缩放片段。
+- **文字和动画**：文字样式、入场/出场/循环动画（[anime.js](https://animejs.com)）。
+- **字幕**：浏览器内用 Whisper（Transformers.js）识别字幕，支持 SRT 导入导出。
+- **导出**：用 [MediaBunny](https://github.com/Vanilagy/mediabunny) 导出 MP4；也可以导出剪映草稿。
+- **工程**：工程和素材存在浏览器 OPFS 中，自动保存，支持多个工程和 `.flycut` 工程包导入导出。
+- **AI**：本地 MCP 服务（配对码认证）和 WebMCP，AI 可以导入素材、编辑时间轴、生成字幕和导出。
+
+## 开发
+```bash
+pnpm install
+pnpm dev          # http://localhost:4008
+pnpm test:unit    # Vitest
+pnpm test:e2e     # Playwright
+```
 
 ## 参考
 - https://github.com/Vanilagy/mediabunny 基于 WebCodecs 在浏览器中读取、解码和编码音视频；用来处理音视频文件
@@ -25,8 +38,8 @@ FlyCut 会自动在当前浏览器中保存最近一次的时间轴和导入素�
 
 导入的文件会先处理再存进浏览器（OPFS），以节省空间，并转成编辑和导出都支持的格式：
 
-- **图片**：静态图片重新编码为 WebP（保留透明，按 EXIF 方向摆正），长边超过 3840 px 的缩小到 3840 px；不需要缩小且 WebP 没有小 10% 以上时保留原图。GIF、SVG 和动图 PNG/WebP 保持原样。
-- **视频**：MOV、WebM、MKV 以及不是 H.264 的 MP4 会转成 H.264 MP4（音频为 AAC；浏览器没有 AAC 编码器时用 Opus）；长边超过 1920 px 的缩小到 1920 px。1080p 以内的兼容 MP4 原样保存。
+- **图片**：静态图片重新编码为 WebP（保留透明，按 EXIF 方向摆正），长边超过 3840 px 的缩小到 3840 px；不需要缩小且 WebP 没有小 10% 以上时保留原图。GIF 和动图 PNG/WebP 保持原样；SVG 栅格化为 WebP（长边至少 1080 px）。
+- **视频**：MOV、WebM、MKV 以及不是 H.264 的 MP4 会转成 H.264 MP4（音频为 AAC；浏览器没有 AAC 编码器时用 Opus）；长边超过 1920 px 的缩小到 1920 px。1080p 以内的兼容 MP4 原样保存；带透明通道的 WebM 也原样保存，因为 H.264 不支持透明。
 - **音频**：WAV、FLAC、AIFF 转成 M4A（AAC 或 Opus），其他格式保持原样。
 - 只保存处理后的文件，不保留原文件。再次导入同一个原文件会直接使用已保存的素材。
 

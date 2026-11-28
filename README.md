@@ -1,22 +1,36 @@
-# fly-cut
+# Flycut
 
 ## Introduction
-A web-based editing tool implemented with Webcodecs + Vue3 <br/>
+A video editor that runs in the browser (Vue 3 + WebCodecs). Media and projects stay on your computer; nothing is uploaded.<br/>
 If you find it useful, please 🌟 Star 🌟 to support it 🫣 <br/>
 
 Website: [flycut.co](https://flycut.co)
 
-## Features
-![](coverImage/map.png)
-
-FlyCut automatically saves the latest timeline and its imported media in this browser. Reload the editor on the same site to resume. Clearing the site's data removes the local draft.
-
 ## Preview
 ![](coverImage/preview.gif)
+
+## Features (v2)
+- **Resource library**: imported video, images and audio go to the resource list first, where they are compressed and converted and get a cover and waveform. Drag them from the list to the timeline.
+- **Timeline**: built on [@flycut/timeline-kit](https://github.com/x007xyz/timeline-kit), with multiple tracks, move, trim, split, snapping, undo/redo and keyboard shortcuts.
+- **Canvas**: preview and export use the same Canvas renderer (`drawFrame`), so they look the same. Move and resize clips directly on the canvas.
+- **Text and animations**: text styles, plus entrance, exit and loop animations ([anime.js](https://animejs.com)).
+- **Subtitles**: in-browser Whisper speech recognition (Transformers.js), SRT import and export.
+- **Export**: MP4 export with [MediaBunny](https://github.com/Vanilagy/mediabunny), and JianYing (剪映) draft export.
+- **Projects**: projects and media are stored in the browser's OPFS and saved automatically. Multiple projects, `.flycut` package import and export.
+- **AI**: a local MCP server (with a pairing code) and WebMCP, so an AI can import media, edit the timeline, generate subtitles and export.
+
+## Development
+```bash
+pnpm install
+pnpm dev          # http://localhost:4008
+pnpm test:unit    # Vitest
+pnpm test:e2e     # Playwright
+```
 
 ## References
 - https://github.com/Vanilagy/mediabunny Reads, decodes and encodes media in the browser based on WebCodecs; used for processing audio and video files
 - https://github.com/Cc-Edit/CcClip A web-based editing tool implemented with Vue3 + ffmpeg, the main functionality of this project is based on this project
+
 ## License
 [AGPL-3.0](LICENSE). Code derived from CcClip keeps its Apache-2.0 notice in [NOTICE](NOTICE).
 
@@ -24,8 +38,8 @@ FlyCut automatically saves the latest timeline and its imported media in this br
 
 Imported files are processed before they are stored in the browser (OPFS) to save space and keep formats the editor and export handle:
 
-- **Images**: still images are re-encoded as WebP (alpha kept, EXIF orientation applied) and downscaled to a 3840 px long side; the original is kept when it doesn't need downscaling and WebP isn't at least 10% smaller. GIF, SVG and animated PNG/WebP stay as they are.
-- **Video**: MOV, WebM, MKV and other non H.264 MP4 files are converted to H.264 MP4 (AAC, or Opus where the browser has no AAC encoder); video with a long side above 1920 px is downscaled to 1920 px. Compatible MP4 up to 1080p is stored unchanged.
+- **Images**: still images are re-encoded as WebP (alpha kept, EXIF orientation applied) and downscaled to a 3840 px long side; the original is kept when it doesn't need downscaling and WebP isn't at least 10% smaller. GIF and animated PNG/WebP stay as they are; SVG is rasterized to WebP (at least 1080 px on the long side).
+- **Video**: MOV, WebM, MKV and other non H.264 MP4 files are converted to H.264 MP4 (AAC, or Opus where the browser has no AAC encoder); video with a long side above 1920 px is downscaled to 1920 px. Compatible MP4 up to 1080p is stored unchanged, and so is WebM with transparency, because H.264 has no alpha channel.
 - **Audio**: WAV, FLAC and AIFF are converted to M4A (AAC or Opus); other formats stay as they are.
 - Only the processed file is stored, not the original. Re-importing the same original file reuses the stored asset.
 
