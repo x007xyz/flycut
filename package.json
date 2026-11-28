@@ -1,6 +1,6 @@
 {
   "name": "fly-cut",
-  "version": "0.0.0",
+  "version": "2.0.0",
   "license": "AGPL-3.0-only",
   "private": true,
   "packageManager": "pnpm@9.10.0",
