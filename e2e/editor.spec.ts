@@ -693,6 +693,58 @@ test('resource library persists imported media and reuses it after a reload', as
   expect(await opfsEntries(page, 'flycut', 'assets')).toEqual([saved.assets[0].id]);
 });
 
+test('resources without a cached poster get a first-frame or thumbnail poster again', async({ page }) => {
+  await page.goto('/');
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 48;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D context unavailable');
+    ctx.fillStyle = '#ff735c';
+    ctx.fillRect(0, 0, 64, 48);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await openResources(page);
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByText('导入资源', { exact: true }).click();
+  await (await chooser).setFiles([
+    { name: 'sample.mp4', mimeType: 'video/mp4', buffer: readFileSync(path.resolve('e2e/fixtures/sample.mp4')) },
+    { name: 'thumb.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') }
+  ]);
+  const cards = page.locator('.media-card');
+  await expect(cards).toHaveCount(2);
+  await expect(page.locator('.media-loading')).toHaveCount(0);
+  await expect(cards.locator('img')).toHaveCount(2);
+
+  // 模拟旧版本导入、没有封面缓存的素材
+  const removePosters = () => page.evaluate(async() => {
+    const assets = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('flycut')).getDirectoryHandle('assets');
+    const removed: string[] = [];
+    for await (const [id, handle] of (assets as any).entries()) {
+      await (handle as FileSystemDirectoryHandle).removeEntry('poster.jpg');
+      removed.push(id);
+    }
+    return removed;
+  });
+  expect(await removePosters()).toHaveLength(2);
+  await page.reload();
+  await openResources(page);
+  await expect(cards).toHaveCount(2);
+  await expect(page.locator('.media-card[data-kind="video"] img')).toBeVisible();
+  await expect(page.locator('.media-card[data-kind="image"] img')).toBeVisible();
+  const posterSizes = await page.evaluate(async() => {
+    const assets = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('flycut')).getDirectoryHandle('assets');
+    const sizes: number[] = [];
+    for await (const handle of (assets as any).values()) {
+      sizes.push((await (await (handle as FileSystemDirectoryHandle).getFileHandle('poster.jpg')).getFile()).size);
+    }
+    return sizes;
+  });
+  expect(posterSizes).toHaveLength(2);
+  posterSizes.forEach(size => expect(size).toBeGreaterThan(0));
+});
+
 test('a legacy localStorage draft and root-level OPFS media migrate into a project', async({ page }) => {
   await addMedia(page);
   await expectImported(page);
