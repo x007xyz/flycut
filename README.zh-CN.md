@@ -36,3 +36,7 @@ FlyCut 会自动在当前浏览器中保存最近一次的时间轴和导入素�
 服务只接受 `FLYCUT_ALLOWED_ORIGINS`（默认 `http://localhost:4008,http://127.0.0.1:4008`）中的页面连接；端口可用 `FLYCUT_MCP_PORT` 修改。本地服务额外提供 `import_file` 工具，可以按绝对路径导入本机文件。
 
 **WebMCP**：浏览器提供 `document.modelContext`（W3C WebMCP 草案）时，同一套命令会自动注册为页面工具，可以在 “AI” 菜单中关闭。
+
+## 导出剪映草稿
+
+工程菜单 → 导出剪映草稿，会下载一个包含草稿文件夹（`draft_content.json`、`draft_meta_info.json`、`materials/`）的 zip。导出时填写剪映的草稿位置（全局设置 → 草稿位置），并把 zip 解压到该目录，素材即可自动链接；否则需要在剪映中重新链接素材。视频、图片、音频和文字片段会保留时间、裁剪、位置、缩放和静音设置，文字字号是近似换算。草稿为明文 JSON，剪映 5.9 及新版本都能打开。

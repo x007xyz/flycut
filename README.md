@@ -35,3 +35,7 @@ Editing commands (read the timeline, import assets, add/update/trim/split/delete
 Only pages listed in `FLYCUT_ALLOWED_ORIGINS` (default `http://localhost:4008,http://127.0.0.1:4008`) may connect; change the port with `FLYCUT_MCP_PORT`. The local server adds an `import_file` tool that imports a file by absolute path.
 
 **WebMCP**: when the browser exposes `document.modelContext` (W3C WebMCP draft), the same commands are registered as page tools; they can be turned off in the "AI" menu.
+
+## JianYing (剪映) draft export
+
+Project menu → 导出剪映草稿 downloads a zip containing a draft folder (`draft_content.json`, `draft_meta_info.json`, `materials/`). Enter JianYing's draft location (全局设置 → 草稿位置) when exporting and unzip the archive there so media paths resolve; otherwise relink media in JianYing. Video, image, audio and text clips keep their timing, trim, position, scale and mute state; text size is an approximate conversion. The draft is plain JSON, which JianYing 5.9 and newer versions open.
