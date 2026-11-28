@@ -48,8 +48,9 @@ async function rasterizeSvg(file: File) {
     const image = new Image();
     image.src = url;
     await image.decode();
-    const width = image.naturalWidth || 1080;
-    const height = image.naturalHeight || 1080;
+    // 极细的 SVG 短边会被取整为 0，按 1 px 处理以保持比例
+    const width = image.naturalWidth || (image.naturalHeight ? 1 : 1080);
+    const height = image.naturalHeight || (image.naturalWidth ? 1 : 1080);
     const scale = Math.min(maxImageSide, Math.max(1080, width, height)) / Math.max(width, height);
     const canvas = new OffscreenCanvas(Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale)));
     canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
