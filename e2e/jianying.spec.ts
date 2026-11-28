@@ -26,11 +26,16 @@ test('exports a JianYing draft with media, placement and text', async({ page }) 
   const video = await call('add_clip', { assetId: asset.id, start: 0 });
   await call('update_clip', { clipId: video.id, x: 45, muted: true });
   const caption = await call('add_text', { content: '你好剪映', start: 0.5, duration: 1, y: 100, fill: 'black', stroke: 'rgb(255, 0, 0)' });
-  await call('set_animation', { clipId: video.id, kind: 'in', preset: 'fade', duration: 0.2 });
-  await call('set_animation', { clipId: video.id, kind: 'out', preset: 'left', duration: 0.15 });
+  // 剪映没有视频的模糊进入和循环动画；入场出场超出片段时长时，未导出的入场也参与按比例缩短
+  await call('set_animation', { clipId: video.id, kind: 'in', preset: 'blur', duration: 0.4 });
+  await call('set_animation', { clipId: video.id, kind: 'out', preset: 'left', duration: 0.3 });
   await call('set_animation', { clipId: video.id, kind: 'loop', preset: 'pulse' });
+  // 入场和出场占满文字片段，剪映的循环动画无处可放
   await call('set_animation', { clipId: caption.id, kind: 'in', preset: 'typewriter', duration: 0.6 });
+  await call('set_animation', { clipId: caption.id, kind: 'out', preset: 'fade', duration: 0.4 });
   await call('set_animation', { clipId: caption.id, kind: 'loop', preset: 'shake' });
+  const looping = await call('add_text', { content: '循环', start: 2, duration: 1 });
+  await call('set_animation', { clipId: looping.id, kind: 'loop', preset: 'shake' });
 
   await page.locator('.project-menu').click();
   await page.getByText('导出剪映草稿', { exact: true }).click();
@@ -40,7 +45,10 @@ test('exports a JianYing draft with media, placement and text', async({ page }) 
     .click();
   const file = await download;
   // 剪映视频没有循环动画，提示用户这个动画被省略了
-  await expect(page.locator('.el-message-box', { hasText: '部分动画未导出' })).toContainText('画面循环「呼吸」');
+  const warning = page.locator('.el-message-box', { hasText: '部分动画未导出' });
+  await expect(warning).toContainText('画面「模糊进入」');
+  await expect(warning).toContainText('画面循环「呼吸」');
+  await expect(warning).toContainText('文字循环「摇摆」（入场和出场占满了片段）');
   const zip = unzipSync(new Uint8Array(Buffer.concat(await (await file.createReadStream()).toArray())));
   const folder = file.suggestedFilename().replace(/\.zip$/, '');
   const content = JSON.parse(strFromU8(zip[`${folder}/draft_content.json`]));
@@ -72,14 +80,13 @@ test('exports a JianYing draft with media, placement and text', async({ page }) 
     .find((group: any) => item.extra_material_refs.includes(group.id))?.animations
     .map(({ type, name, start, duration }: any) => ({ type, name, start, duration }));
   const videoEnd = segment.target_timerange.duration;
-  expect(animationsOf(segment)).toEqual([
-    { type: 'in', name: '渐显', start: 0, duration: 200000 },
-    { type: 'out', name: '向左滑动', start: videoEnd - 150000, duration: 150000 }
-  ]);
+  const outDuration = Math.round(300000 * Math.min(1, videoEnd / 700000));
+  expect(animationsOf(segment)).toEqual([{ type: 'out', name: '向左滑动', start: videoEnd - outDuration, duration: outDuration }]);
   expect(animationsOf(textSegment)).toEqual([
     { type: 'in', name: '打字机 I', start: 0, duration: 600000 },
-    { type: 'loop', name: '摇摆', start: 600000, duration: 400000 }
+    { type: 'out', name: '渐隐', start: 600000, duration: 400000 }
   ]);
+  expect(animationsOf(textTrack.segments[1])).toEqual([{ type: 'loop', name: '摇摆', start: 0, duration: 1000000 }]);
   const text = content.materials.texts.find((item: any) => item.id === textSegment.material_id);
   expect(JSON.parse(text.content).text).toBe('你好剪映');
   const [style] = JSON.parse(text.content).styles;

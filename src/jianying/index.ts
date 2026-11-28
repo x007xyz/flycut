@@ -114,32 +114,35 @@ export async function buildJianyingDraft(lines: { list: Track[] }[], { name, dra
   function animate(segment: Json, track: VideoTrack | ImageTrack | TextTrack) {
     const target = track instanceof TextTrack ? 'text' : 'video';
     const total = (segment.target_timerange as { duration: number }).duration;
-    const found: { kind: AnimationKind, meta: [string, string, string], duration: number }[] = [];
+    const specs = { in: active(track.animations?.in, 'in'), out: active(track.animations?.out, 'out'), loop: active(track.animations?.loop, 'loop') };
+    // 与 motionAt 一致：入场和出场（无论剪映有没有对应动画）超出片段时长时按比例缩短，循环在两者之间
+    const inDuration = Math.round((specs.in?.duration ?? 0) * 1e6);
+    const outDuration = Math.round((specs.out?.duration ?? 0) * 1e6);
+    const ratio = Math.min(1, total / (inDuration + outDuration || 1));
+    const ranges = {
+      in: { start: 0, duration: Math.round(inDuration * ratio) },
+      out: { start: total - Math.round(outDuration * ratio), duration: Math.round(outDuration * ratio) },
+      loop: { start: Math.round(inDuration * ratio), duration: total - Math.round(inDuration * ratio) - Math.round(outDuration * ratio) }
+    };
+    const animations: Json[] = [];
     for (const kind of ['in', 'out', 'loop'] as AnimationKind[]) {
-      const spec = active(track.animations?.[kind], kind);
+      const spec = specs[kind];
       const meta = spec && jianyingAnimations[target][kind]?.[spec.preset];
-      if (meta) found.push({ kind, meta, duration: Math.round(spec.duration * 1e6) });
-      else if (spec) {
+      const range = ranges[kind];
+      if (meta && range.duration > 0) {
+        const [title, resourceId, effectId] = meta;
+        animations.push({
+          anim_adjust_params: null, platform: 'all',
+          panel: target === 'video' ? 'video' : '', material_type: target === 'video' ? 'video' : 'sticker',
+          name: title, id: effectId, type: kind, resource_id: resourceId, ...range
+        });
+      } else if (spec) {
         const label = animationPresets[kind].find(({ value }) => value === spec.preset)?.label ?? spec.preset;
-        skipped.add(`${target === 'text' ? '文字' : '画面'}${kind === 'loop' ? '循环' : ''}「${label}」`);
+        // 剪映的循环动画只在入场和出场之间播放，两者占满片段时无法保留
+        const reason = meta ? '（入场和出场占满了片段）' : '';
+        skipped.add(`${target === 'text' ? '文字' : '画面'}${kind === 'loop' ? '循环' : ''}「${label}」${reason}`);
       }
     }
-    if (!found.length) return segment;
-    const intro = found.find(({ kind }) => kind === 'in');
-    const outro = found.find(({ kind }) => kind === 'out');
-    // 入场和出场不能重叠，超出片段时长时按比例缩短
-    const ratio = Math.min(1, total / ((intro?.duration ?? 0) + (outro?.duration ?? 0) || 1));
-    if (intro) intro.duration = Math.round(intro.duration * ratio);
-    if (outro) outro.duration = Math.round(outro.duration * ratio);
-    const animations = found.map(({ kind, meta: [title, resourceId, effectId], duration }) => {
-      const start = kind === 'in' ? 0 : kind === 'out' ? total - duration : intro?.duration ?? 0;
-      return {
-        anim_adjust_params: null, platform: 'all',
-        panel: target === 'video' ? 'video' : '', material_type: target === 'video' ? 'video' : 'sticker',
-        name: title, id: effectId, type: kind, resource_id: resourceId, start,
-        duration: kind === 'loop' ? total - start - (outro?.duration ?? 0) : duration
-      };
-    }).filter(({ duration }) => duration > 0);
     if (!animations.length) return segment;
     animated += animations.length;
     const id = uuid();
