@@ -71,6 +71,20 @@ test('imports compress oversized images and lossless audio and convert WebM to M
   expect(byKind('video')).toMatchObject({ name: 'sample.mp4', format: 'video/mp4', width: 320, height: 240 });
   expect(Math.abs(byKind('video').duration - 1)).toBeLessThan(0.1);
 
+  // 转码后的素材以处理后内容的哈希为 id，工程包导入时按它校验；再次导入同一原文件直接复用
+  const chooser3 = page.waitForEvent('filechooser');
+  await page.getByText('导入资源', { exact: true }).click();
+  await (await chooser3).setFiles({ name: 'tone.wav', mimeType: 'audio/wav', buffer: wav() });
+  await expect(page.locator('.media-loading')).toHaveCount(0, { timeout: 30000 });
+  await expect(page.locator('.media-card')).toHaveCount(3);
+  const stored = await page.evaluate(async id => {
+    const root = await navigator.storage.getDirectory();
+    const dir = await (await (await root.getDirectoryHandle('flycut')).getDirectoryHandle('assets')).getDirectoryHandle(id);
+    const bytes = await (await (await dir.getFileHandle('data')).getFile()).arrayBuffer();
+    return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
+  }, byKind('audio').id);
+  expect(stored).toBe(byKind('audio').id);
+
   // 转换后的视频可以放到时间轴并导出
   const clip = await call('add_clip', { assetId: byKind('video').id, start: 0 });
   expect(clip.end).toBeGreaterThan(0.9);

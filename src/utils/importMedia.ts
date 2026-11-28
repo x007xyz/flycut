@@ -81,15 +81,25 @@ async function importAsset(file: File, kind: MediaKind, task: PendingAsset): Pro
     if (item) item.stage = text;
   };
   stage('读取文件');
-  const id = await getMD5(await file.arrayBuffer());
-  const existing = await assetStore.meta(id);
+  const sourceHash = await getMD5(await file.arrayBuffer());
+  // 压缩转码过的素材以处理后内容的哈希为 id（工程包按它校验），原文件哈希记在 sourceHash 里，再次导入同一文件时直接复用
+  let existing = await assetStore.meta(sourceHash) ?? (await assetStore.list()).find(record => record.sourceHash === sourceHash) ?? null;
   if (existing?.kind === kind) {
     resources.add(existing);
     return existing;
   }
+  let id = sourceHash;
   try {
     stage('压缩转码');
     const prepared = await prepareMedia(file, kind, progress => stage(`压缩转码 ${Math.round(progress * 100)}%`));
+    if (prepared !== file) {
+      id = await getMD5(await prepared.arrayBuffer());
+      existing = await assetStore.meta(id);
+      if (existing?.kind === kind) {
+        resources.add(existing);
+        return existing;
+      }
+    }
     const format = prepared.type || (kind === 'video' ? 'video/mp4' : '');
     stage('保存到本地');
     await assetStore.putData(id, prepared);
@@ -97,7 +107,7 @@ async function importAsset(file: File, kind: MediaKind, task: PendingAsset): Pro
     const { meta, poster } = await describe(id, kind, format);
     const record: AssetRecord = {
       id, kind, name: prepared.name, format, size: prepared.size, createdAt: Date.now(), ...meta,
-      ...(prepared === file ? {} : { originalSize: file.size })
+      ...(prepared === file ? {} : { sourceHash, originalSize: file.size })
     };
     stage('生成封面');
     const image = await poster().catch(() => null);
