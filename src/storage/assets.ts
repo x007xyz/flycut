@@ -14,6 +14,8 @@ export interface AssetRecord {
   width: number;
   height: number;
   createdAt: number;
+  // 导入时压缩或转码过的素材记录原文件大小
+  originalSize?: number;
 }
 
 const dataFile = 'data';

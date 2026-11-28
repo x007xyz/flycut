@@ -9,17 +9,18 @@ import { useResourceState, type PendingAsset } from '@/stores/resourceStore';
 import { peaksOf } from '@/timeline/mediaProvider';
 import { assetStore, assetUrl, type AssetKind, type AssetRecord } from '@/storage/assets';
 import { audioDecoder, imageDecoder, videoDecoder } from '@/utils/webcodecs';
+import { largeFileBytes, prepareMedia } from '@/utils/preprocessMedia';
 
 export type MediaKind = AssetKind;
 
 export const assetDragType = 'application/x-flycut-asset';
 
-export const mediaAccept = '.mp4,video/mp4,image/*,audio/*';
+export const mediaAccept = '.mp4,.mov,.m4v,.webm,.mkv,video/*,image/*,audio/*';
 
 const posterWidth = 160;
 
 const failures: Record<MediaKind, string> = {
-  video: '解析视频失败，请选择可播放的 MP4 视频',
+  video: '解析视频失败，浏览器可能不支持这个视频的编码',
   image: '解析图片失败',
   audio: '解析音频失败'
 };
@@ -27,7 +28,7 @@ const failures: Record<MediaKind, string> = {
 export function mediaKind(file: File): MediaKind | null {
   if (file.type.startsWith('audio/')) return 'audio';
   if (file.type.startsWith('image/')) return 'image';
-  if (file.type === 'video/mp4' || /\.mp4$/i.test(file.name)) return 'video';
+  if (file.type.startsWith('video/') || /\.(mp4|mov|m4v|webm|mkv)$/i.test(file.name)) return 'video';
   return null;
 }
 
@@ -86,13 +87,18 @@ async function importAsset(file: File, kind: MediaKind, task: PendingAsset): Pro
     resources.add(existing);
     return existing;
   }
-  const format = file.type || (kind === 'video' ? 'video/mp4' : '');
   try {
+    stage('压缩转码');
+    const prepared = await prepareMedia(file, kind, progress => stage(`压缩转码 ${Math.round(progress * 100)}%`));
+    const format = prepared.type || (kind === 'video' ? 'video/mp4' : '');
     stage('保存到本地');
-    await assetStore.putData(id, file);
+    await assetStore.putData(id, prepared);
     stage('解析素材');
     const { meta, poster } = await describe(id, kind, format);
-    const record: AssetRecord = { id, kind, name: file.name, format, size: file.size, createdAt: Date.now(), ...meta };
+    const record: AssetRecord = {
+      id, kind, name: prepared.name, format, size: prepared.size, createdAt: Date.now(), ...meta,
+      ...(prepared === file ? {} : { originalSize: file.size })
+    };
     stage('生成封面');
     const image = await poster().catch(() => null);
     if (image) await assetStore.writeCache(id, 'poster.jpg', image);
@@ -147,6 +153,10 @@ export async function importMedia(files: Iterable<File>) {
     return kind ? [{ file, kind, task: { key: ++pendingKey, name: file.name, kind, stage: '等待处理' }}] : [];
   });
   const skipped = list.filter(file => !mediaKind(file)).map(file => file.name);
+  const large = supported.filter(({ file }) => file.size > largeFileBytes).map(({ file }) => file.name);
+  if (large.length) {
+    ElMessage.warning({ message: `${large.join('、')} 超过 2 GB：导入时不会压缩，处理和导出会占用大量内存；工程包和剪映草稿不支持超过 4 GB`, duration: 8000 });
+  }
   if (!supported.length) ElMessage.warning('请导入视频、图片或音频文件');
   else if (skipped.length) ElMessage.warning(`已跳过不支持的文件：${skipped.join('、')}`);
   resources.pending.push(...supported.map(({ task }) => task));
