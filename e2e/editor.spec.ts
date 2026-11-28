@@ -1,3 +1,4 @@
+/* global FileSystemDirectoryHandle, CompressionStream, DecompressionStream */
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -7,8 +8,41 @@ const tracks = '.tk-track-row:has(.tk-track-clip[data-type="video"])';
 const draftKey = 'flycut.editorDraft';
 const textClip = '.tk-track-clip[data-type="text"]';
 
+async function projectDir() {
+  const root = await navigator.storage.getDirectory();
+  const id = localStorage.getItem('flycut.currentProject');
+  if (!id) throw new Error('No current project');
+  const flycut = await root.getDirectoryHandle('flycut', { create: true });
+  const projects = await flycut.getDirectoryHandle('projects', { create: true });
+  return projects.getDirectoryHandle(id, { create: true });
+}
+
 function readDraft(page: Page): Promise<string | null> {
-  return page.evaluate(key => localStorage.getItem(key), draftKey);
+  return page.evaluate(async source => {
+    try {
+      // eslint-disable-next-line no-new-func
+      const dir = await (new Function(`return (${source})()`)() as Promise<FileSystemDirectoryHandle>);
+      const file = await (await dir.getFileHandle('project.json.gz')).getFile();
+      return await new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    } catch {
+      return null;
+    }
+  }, projectDir.toString());
+}
+
+async function writeDraft(page: Page, text: string) {
+  await page.evaluate(async({ source, text: json }) => {
+    // eslint-disable-next-line no-new-func
+    const dir = await (new Function(`return (${source})()`)() as Promise<FileSystemDirectoryHandle>);
+    const writable = await (await dir.getFileHandle('project.json.gz', { create: true })).createWritable();
+    await new Blob([json]).stream()
+.pipeThrough(new CompressionStream('gzip'))
+.pipeTo(writable);
+  }, { source: projectDir.toString(), text });
+}
+
+function videoClips(json: string | null) {
+  return JSON.parse(json ?? '{}').lines?.find((line: { t: string }) => line.t === 'video')?.c;
 }
 
 async function addText(page: Page, content: string) {
@@ -24,7 +58,12 @@ async function removeClip(page: Page, selector: string) {
   await page.keyboard.press('Backspace');
 }
 
-async function dropFile(page: Page, name = 'sample.mp4') {
+async function openResources(page: Page) {
+  await page.locator('.tabsToggle').getByText('资源', { exact: true })
+    .click();
+}
+
+async function dropRawFile(page: Page, name: string) {
   const bytes = [...readFileSync(path.resolve('e2e/fixtures', name))];
   const dataTransfer = await page.evaluateHandle(({ bytes: fileBytes, name: fileName }) => {
     const transfer = new DataTransfer();
@@ -37,6 +76,18 @@ async function dropFile(page: Page, name = 'sample.mp4') {
   await timeline.dispatchEvent('dragover', { dataTransfer });
   await timeline.dispatchEvent('drop', { dataTransfer });
   await dataTransfer.dispose();
+}
+
+// 文件先导入资源列表，再把资源卡片拖到时间轴
+async function addMedia(page: Page, name = 'sample.mp4') {
+  await openResources(page);
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByText('导入资源', { exact: true }).click();
+  await (await chooser).setFiles(path.resolve('e2e/fixtures', name));
+  const card = page.locator(`.media-card[title="${name}"]`);
+  await expect(card).toHaveCount(1);
+  await expect(page.locator('.media-loading')).toHaveCount(0);
+  await card.dragTo(page.locator('.trackList'));
 }
 
 async function expectImported(page: Page) {
@@ -81,12 +132,12 @@ async function openEditor(page: Page) {
 test.beforeEach(async({ page }) => openEditor(page));
 
 test('empty project offers media drop and has no tracks', async({ page }) => {
-  await expect(page.getByText('将视频、图片或音频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
+  await expect(page.getByText('从资源列表把视频、图片或音频拖到这里，开始编辑你的大作吧~')).toBeVisible();
   await expect(page.locator('.tk-track-row')).toHaveCount(0);
 });
 
-test('MP4 drop creates a video track and renders preview pixels', async({ page }) => {
-  await dropFile(page);
+test('dragging an MP4 resource to the timeline creates a video track and renders preview pixels', async({ page }) => {
+  await addMedia(page);
   await expectImported(page);
 });
 
@@ -104,7 +155,7 @@ async function dragVideo(page: Page, dx: number) {
 }
 
 test('preview video is a DOM element that moves with the Moveable drag', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const { target, before, picture } = await dragVideo(page, 40);
   await expect(page.locator('.cc-move .moveable-control').first()).toBeVisible();
@@ -112,11 +163,24 @@ test('preview video is a DOM element that moves with the Moveable drag', async({
   const moved = await target.locator('canvas').boundingBox();
   expect(after!.x - before.x).toBeGreaterThan(30);
   expect(moved!.x - picture.x).toBeCloseTo(after!.x - before.x, 0);
-  const centerX = async() => JSON.parse(await readDraft(page) ?? '{}').lines
-    ?.find((line: { type: string }) => line.type === 'video')
-    ?.tracks[0]?.placement.centerX;
+  const centerX = async() => videoClips(await readDraft(page))?.[0]?.x;
   await expect.poll(centerX).toBeGreaterThan(0);
 });
+
+async function addFromLibrary(page: Page, count: number) {
+  const cards = page.locator('.media-card');
+  await expect(cards).toHaveCount(count);
+  await expect(page.locator('.media-loading')).toHaveCount(0);
+  // 导入只进入素材列表，不直接放到时间轴
+  await expect(page.locator('.tk-track-clip')).toHaveCount(0);
+  for (let i = 0; i < count; i++) {
+    // eslint-disable-next-line no-await-in-loop -- 按顺序添加
+    await cards.nth(i).hover();
+    // eslint-disable-next-line no-await-in-loop
+    await cards.nth(i).locator('.media-add')
+.click();
+  }
+}
 
 test('resource file chooser creates a video track', async({ page }) => {
   await page.locator('.tabsToggle').getByText('资源', { exact: true })
@@ -124,6 +188,7 @@ test('resource file chooser creates a video track', async({ page }) => {
   const chooser = page.waitForEvent('filechooser');
   await page.getByText('导入资源', { exact: true }).click();
   await (await chooser).setFiles(fixture);
+  await addFromLibrary(page, 1);
   await expectImported(page);
 });
 
@@ -158,14 +223,25 @@ test('one resource chooser imports video, image and audio together', async({ pag
     { name: 'dot.png', mimeType: 'image/png', buffer: png },
     { name: 'tone.wav', mimeType: 'audio/wav', buffer: wavFile(1) }
   ]);
+  await expect(page.locator('.media-loading')).not.toHaveCount(0);
+  await addFromLibrary(page, 3);
   await Promise.all(['video', 'image', 'audio']
     .map(type => expect(page.locator(`.tk-track-clip[data-type="${type}"]`)).toHaveCount(1)));
   await expect(page.locator('.move-target[data-kind="image"]')).toHaveCount(1);
 });
 
-test('unsupported drop warns without creating tracks', async({ page }) => {
-  await dropFile(page, 'not-video.txt');
+test('files dropped on the timeline are not imported and unsupported resources warn', async({ page }) => {
+  await dropRawFile(page, 'sample.mp4');
+  await expect(page.getByText('请先在左侧“资源”中导入文件，再把资源拖到时间轴', { exact: true })).toBeVisible();
+  await expect(page.locator('.tk-track-row')).toHaveCount(0);
+  await openResources(page);
+  await expect(page.locator('.media-card, .media-loading')).toHaveCount(0);
+
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByText('导入资源', { exact: true }).click();
+  await (await chooser).setFiles(path.resolve('e2e/fixtures/not-video.txt'));
   await expect(page.getByText('请导入视频、图片或音频文件', { exact: true })).toBeVisible();
+  await expect(page.locator('.media-card')).toHaveCount(0);
   await expect(page.locator('.tk-track-row')).toHaveCount(0);
 });
 
@@ -180,7 +256,7 @@ test('autosave restores split video, edited text and the playhead, then resumes 
       return audio;
     } as typeof Audio;
   });
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
 
   const video = page.locator('.tk-track-clip[data-type="video"]');
@@ -198,12 +274,15 @@ test('autosave restores split video, edited text and the playhead, then resumes 
 .press('ArrowRight');
   await expect.poll(() => readDraft(page)).toContain('Draft subtitle');
   const saved = JSON.parse(await readDraft(page) ?? '');
-  expect(saved.trackScale).toBe(70);
-  expect(saved.playhead).toBe(6);
-  expect(saved.lines.find((line: { type: string }) => line.type === 'video').tracks).toMatchObject([
-    { start: 0, end: 6, trim: { offsetL: 0, offsetR: expect.any(Number) }},
-    { start: 6, trim: { offsetL: 6, offsetR: 0 }}
-  ]);
+  expect(saved.scale).toBe(70);
+  expect(saved.at).toBe(6);
+  const [head, tail] = videoClips(JSON.stringify(saved));
+  expect(head).toMatchObject({ s: 0, e: 6, r: expect.any(Number) });
+  expect(tail).toMatchObject({ s: 6, l: 6 });
+  // 默认值不写入工程文件，两个片段共用一条素材记录
+  expect(head).not.toHaveProperty('l');
+  expect(tail).not.toHaveProperty('r');
+  expect(saved.assets).toHaveLength(1);
   expect(JSON.stringify(saved)).not.toContain('blob:');
 
   await page.reload();
@@ -235,7 +314,7 @@ test('muted video does not play its audio in the preview', async({ page }) => {
       return audio;
     } as typeof Audio;
   });
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await page.locator('.move-target[data-kind="video"]').click();
   const mute = page.locator('.formItem', { hasText: '静音' }).locator('.el-switch');
@@ -256,11 +335,10 @@ test('muted video does not play its audio in the preview', async({ page }) => {
 });
 
 test('timeline trim updates the source range and undo restores it', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const video = page.locator('.tk-track-clip[data-type="video"]');
-  const offsetL = async() => JSON.parse(await readDraft(page) ?? '{}').lines
-    ?.find((line: { type: string }) => line.type === 'video')?.tracks[0]?.trim.offsetL;
+  const offsetL = async() => { const clips = videoClips(await readDraft(page)); return clips ? clips[0].l ?? 0 : undefined; };
   await video.click({ position: { x: 12, y: 14 }});
   const handle = await video.locator('.tk-track-clip-handle').first()
     .boundingBox();
@@ -285,7 +363,7 @@ test('deleting the last clip stays deleted after an immediate reload', async({ p
   await removeClip(page, textClip);
   await page.reload();
   await expect(page.locator('.tk-track-clip')).toHaveCount(0);
-  await expect(page.getByText('将视频、图片或音频拖拽到这里，开始编辑你的大作吧~')).toBeVisible();
+  await expect(page.getByText('从资源列表把视频、图片或音频拖到这里，开始编辑你的大作吧~')).toBeVisible();
   expect(JSON.parse(await readDraft(page) ?? '').lines).toEqual([]);
 });
 
@@ -306,14 +384,16 @@ test('clearing a numeric text property resets it without invalidating the draft'
 });
 
 test('missing cached media preserves the original draft until the timeline changes', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await addText(page, 'Still here');
   await expect.poll(() => readDraft(page)).toContain('Still here');
   const draft = await readDraft(page) ?? '';
-  const assetId = JSON.parse(draft).lines.find((line: { type: string }) => line.type === 'video').tracks[0].source.id;
+  const assetId = JSON.parse(draft).assets[0].id;
   await page.evaluate(async id => {
-    await (await navigator.storage.getDirectory()).removeEntry(id);
+    const root = await navigator.storage.getDirectory();
+    const assets = await (await root.getDirectoryHandle('flycut')).getDirectoryHandle('assets');
+    await assets.removeEntry(id, { recursive: true });
   }, assetId);
   await page.reload();
   await expect(page.getByRole('alert')).toContainText('草稿中有素材丢失或无法读取');
@@ -333,7 +413,7 @@ test('missing cached media preserves the original draft until the timeline chang
 
 test('an invalid draft leaves a usable editor without overwriting the original', async({ page }) => {
   const invalid = '{"version":42,"lines":[]}';
-  await page.evaluate(({ key, draft }) => localStorage.setItem(key, draft), { key: draftKey, draft: invalid });
+  await writeDraft(page, invalid);
   await page.reload();
   await expect(page.getByRole('alert')).toContainText('无法读取本地草稿');
   await expect(page.locator('.tk-track-clip')).toHaveCount(0);
@@ -344,7 +424,7 @@ test('an invalid draft leaves a usable editor without overwriting the original',
 
 for (const encoder of ['VideoEncoder', 'AudioEncoder']) {
   test(`unsupported ${encoder} clears export loader without opening picker`, async({ page }) => {
-    await dropFile(page);
+    await addMedia(page);
     await expectImported(page);
     await page.evaluate(encoderName => {
       (window as any)[encoderName].isConfigSupported = async(config: unknown) => ({ supported: false, config });
@@ -369,7 +449,7 @@ test('video with a text overlay checks the MP4 output encoder settings', async({
     window.AudioEncoder.isConfigSupported = async config => ({ supported: false, config });
   });
 
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await page.getByText('文字', { exact: true }).click();
   await page.getByText('添加文字', { exact: true }).click();
@@ -448,7 +528,7 @@ async function expectPlayableAudio(page: Page, filename: string) {
 }
 
 test('exported MP4 plays the source audio and can be edited again', async({ page, browser, baseURL }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const name = 'with-audio.mp4';
   await saveToOpfs(page, name);
@@ -467,6 +547,7 @@ test('exported MP4 plays the source audio and can be edited again', async({ page
     const chooser = reopened.waitForEvent('filechooser');
     await reopened.getByText('导入资源', { exact: true }).click();
     await (await chooser).setFiles({ name, mimeType: 'video/mp4', buffer: Buffer.from(bytes) });
+    await addFromLibrary(reopened, 1);
     await expectImported(reopened);
     await saveToOpfs(reopened, 're-export.mp4');
     await expectPlayableAudio(reopened, 're-export.mp4');
@@ -484,7 +565,7 @@ test('missing Opus metadata aborts export without opening the save picker', asyn
       }
     };
   });
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   await page.getByRole('button', { name: '合成视频' }).click();
   await expect(page.getByText('导出视频失败，请重试')).toBeVisible();
@@ -492,7 +573,7 @@ test('missing Opus metadata aborts export without opening the save picker', asyn
 });
 
 test('encoding recovers after confirm and save-picker cancellation', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const exportButton = page.getByRole('button', { name: '合成视频' });
   async function renderAndCancel(action: string, calls: number) {
@@ -510,7 +591,7 @@ test('encoding recovers after confirm and save-picker cancellation', async({ pag
 });
 
 test('exported MP4 keeps the position the video was dragged to', async({ page }) => {
-  await dropFile(page);
+  await addMedia(page);
   await expectImported(page);
   const { before } = await dragVideo(page, 0);
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
@@ -566,4 +647,152 @@ test('exported MP4 keeps the position the video was dragged to', async({ page })
   }, name);
   expect(columns.left).toBeLessThan(30);
   expect(columns.right).toBeGreaterThan(50);
+});
+
+const videoClip = '.tk-track-clip[data-type="video"]';
+
+function opfsEntries(page: Page, ...dirs: string[]) {
+  return page.evaluate(async segments => {
+    let dir = await navigator.storage.getDirectory();
+    try {
+      // eslint-disable-next-line no-await-in-loop -- 逐级打开目录
+      for (const name of segments) dir = await dir.getDirectoryHandle(name);
+    } catch {
+      return [];
+    }
+    const names: string[] = [];
+    for await (const name of (dir as any).keys()) names.push(name);
+    return names.sort();
+  }, dirs);
+}
+
+test('resource library persists imported media and reuses it after a reload', async({ page }) => {
+  await addMedia(page);
+  await expectImported(page);
+  await openResources(page);
+  await expect(page.locator('.media-card')).toHaveCount(1);
+  await expect.poll(() => readDraft(page)).toContain('"v":2');
+
+  await page.reload();
+  await expect(page.locator(videoClip)).toHaveCount(1);
+  await openResources(page);
+  const card = page.locator('.media-card');
+  await expect(card).toHaveCount(1);
+  await expect(card.locator('img')).toBeVisible();
+  await card.hover();
+  await card.locator('.media-add').click();
+  await expect(page.locator(videoClip)).toHaveCount(2);
+
+  await addMedia(page);
+  await expect(page.locator(videoClip)).toHaveCount(3);
+  await expect(card).toHaveCount(1);
+  await expect.poll(async() => JSON.parse(await readDraft(page) ?? '{}').lines
+    ?.flatMap((line: { c: unknown[] }) => line.c).length).toBe(3);
+  const saved = JSON.parse(await readDraft(page) ?? '{}');
+  expect(saved.assets).toHaveLength(1);
+  expect(await opfsEntries(page, 'flycut', 'assets')).toEqual([saved.assets[0].id]);
+});
+
+test('a legacy localStorage draft and root-level OPFS media migrate into a project', async({ page }) => {
+  await addMedia(page);
+  await expectImported(page);
+  await expect.poll(() => readDraft(page)).toContain('"v":2');
+  const { id, n: name, f: format, d: duration, w: width, h: height } = JSON.parse(await readDraft(page) ?? '{}').assets[0];
+  const legacy = {
+    version: 1,
+    trackScale: 30,
+    playhead: 0,
+    lines: [{
+      type: 'video',
+      main: true,
+      tracks: [{
+        type: 'video', start: 0, end: 30, frameCount: 30,
+        source: { id, name, format, duration, width, height },
+        trim: { offsetL: 0, offsetR: 0 },
+        placement: { centerX: 0, centerY: 0, scale: 100, width: 200, height: 120 }
+      }]
+    }]
+  };
+  await page.evaluate(async({ asset, key, draft }) => {
+    const root = await navigator.storage.getDirectory();
+    const file = await (await (await (await (await root.getDirectoryHandle('flycut')).getDirectoryHandle('assets'))
+      .getDirectoryHandle(asset)).getFileHandle('data')).getFile();
+    const writable = await (await root.getFileHandle(asset, { create: true })).createWritable();
+    await writable.write(await file.arrayBuffer());
+    await writable.close();
+    await root.removeEntry('flycut', { recursive: true });
+    localStorage.clear();
+    localStorage.setItem(key, draft);
+  }, { asset: id, key: draftKey, draft: JSON.stringify(legacy) });
+
+  await page.reload();
+  await expect(page.locator(videoClip)).toHaveCount(1);
+  await expect.poll(() => readDraft(page)).toContain('"v":2');
+  expect(await page.evaluate(key => localStorage.getItem(key), draftKey)).toBeNull();
+  expect(await opfsEntries(page)).toEqual(['flycut']);
+  expect(await opfsEntries(page, 'flycut', 'assets', id)).toEqual(expect.arrayContaining(['data', 'meta.json']));
+  expect(JSON.parse(await readDraft(page) ?? '{}').scale).toBe(30);
+});
+
+test('a .flycut package restores the project and its media in a fresh browser', async({ page, browser, baseURL }, testInfo) => {
+  await addMedia(page);
+  await expectImported(page);
+  await addText(page, 'Packed caption');
+  await expect.poll(() => readDraft(page)).toContain('Packed caption');
+  await page.locator('.project-menu').click();
+  const download = page.waitForEvent('download');
+  await page.getByText('导出工程（.flycut）').click();
+  const file = testInfo.outputPath('project.flycut');
+  await (await download).saveAs(file);
+
+  const fresh = await browser.newContext({ baseURL });
+  try {
+    const other = await fresh.newPage();
+    await openEditor(other);
+    await expect(other.locator('.tk-track-clip')).toHaveCount(0);
+    await other.locator('.project-menu').click();
+    const chooser = other.waitForEvent('filechooser');
+    await other.getByText('导入工程（.flycut）').click();
+    await (await chooser).setFiles(file);
+    await expect(other.locator(videoClip)).toHaveCount(1);
+    await expect(other.locator(textClip)).toHaveCount(1);
+    await expect(other.locator('.project-name')).toHaveText('未命名工程');
+    await openResources(other);
+    await expect(other.locator('.media-card')).toHaveCount(1);
+    await expect.poll(() => readDraft(other)).toContain('Packed caption');
+  } finally {
+    await fresh.close();
+  }
+});
+
+test('projects can be created and switched, and cleanup keeps assets used by any project', async({ page }) => {
+  await addMedia(page);
+  await expectImported(page);
+  await expect.poll(() => readDraft(page)).toContain('"v":2');
+  await page.locator('.project-menu').click();
+  await page.getByText('新建工程').click();
+  await expect(page.locator('.tk-track-clip')).toHaveCount(0);
+
+  await openResources(page);
+  await page.getByText('清理未使用素材').click();
+  await expect(page.getByText('没有未使用的素材')).toBeVisible();
+
+  await page.locator('.project-menu').click();
+  await page.getByText('删除当前工程').click();
+  await page.getByRole('button', { name: '删除' }).click();
+  await expect(page.locator(videoClip)).toHaveCount(1);
+  await removeClip(page, videoClip);
+  await expect(page.locator(videoClip)).toHaveCount(0);
+  await expect.poll(async() => JSON.parse(await readDraft(page) ?? '{}').assets?.length).toBe(0);
+  // 撤销记录仍引用素材，不能清理
+  await openResources(page);
+  await page.getByText('清理未使用素材').click();
+  await expect(page.getByText('没有未使用的素材')).toBeVisible();
+
+  await page.reload();
+  await openResources(page);
+  await page.getByText('清理未使用素材').click();
+  await page.getByRole('button', { name: '删除' }).click();
+  await expect(page.locator('.media-card')).toHaveCount(0);
+  expect(await opfsEntries(page, 'flycut', 'assets')).toEqual([]);
 });
