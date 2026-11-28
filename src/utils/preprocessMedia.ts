@@ -25,7 +25,7 @@ type FrameCounter = new(init: { data: ReadableStream<Uint8Array>, type: string }
 
 /** 动图（GIF、APNG、动画 WebP）保持原样，重新编码会只剩第一帧 */
 async function isAnimated(file: File) {
-  if (/gif|svg/.test(file.type)) return true;
+  if (/gif/.test(file.type)) return true;
   const Decoder = (self as unknown as { ImageDecoder?: FrameCounter }).ImageDecoder;
   if (!Decoder) return /png|webp|avif/.test(file.type);
   const decoder = new Decoder({ data: file.stream(), type: file.type });
@@ -41,7 +41,27 @@ async function isAnimated(file: File) {
 }
 
 /** 静态图片：长边缩到 3840 以内并转成 WebP（保留透明），按 EXIF 方向摆正；不需要缩小且结果不比原图小 10% 时保留原图 */
+// createImageBitmap 和 ImageDecoder 都解不了 SVG，用 <img> 栅格化成 WebP，没有固有尺寸时按 1080 px 长边输出
+async function rasterizeSvg(file: File) {
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const width = image.naturalWidth || 1080;
+    const height = image.naturalHeight || 1080;
+    const scale = Math.min(maxImageSide, Math.max(1080, width, height)) / Math.max(width, height);
+    const canvas = new OffscreenCanvas(Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale)));
+    canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.9 });
+    return new File([blob], rename(file.name, blob.type === 'image/webp' ? '.webp' : '.png'), { type: blob.type });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 async function prepareImage(file: File) {
+  if (file.type === 'image/svg+xml') return rasterizeSvg(file);
   const unsupported = !browserImage.test(file.type);
   if (!unsupported && await isAnimated(file)) return file;
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
