@@ -15,8 +15,8 @@ importers:
         specifier: ^2.0.10
         version: 2.0.10(vue@3.2.47)
       '@flycut/timeline-kit':
-        specifier: 0.2.0
-        version: 0.2.0(vue@3.2.47)
+        specifier: 0.2.1
+        version: 0.2.1(vue@3.2.47)
       '@huggingface/transformers':
         specifier: 3.7.1
         version: 3.7.1
@@ -634,8 +634,8 @@ packages:
   '@floating-ui/dom@1.2.0':
     resolution: {integrity: sha512-QXzg57o1cjLz3cGETzKXjI3kx1xyS49DW9l7kV2jw2c8Yftd434t2hllX0sVGn2Q8MtcW/4pNm8bfE1/4n6mng==}
 
-  '@flycut/timeline-kit@0.2.0':
-    resolution: {integrity: sha512-Va3h/M4jrsjFeux4S+gkA+ZFzChTaxFZx9LTCD433DhIGn2GeEGmHkY3x3rzYOYp4TOsHbuHgerfTr0LZ01r5A==}
+  '@flycut/timeline-kit@0.2.1':
+    resolution: {integrity: sha512-qilLy0IMw5J2WafohUUpIvRY7RZSZOhEEoOfy9Shrdy9uqmNwiq0vszJathx3vOWa3+81ZwmQu6mo+pCLnf80Q==}
     peerDependencies:
       react: '>=18'
       react-dom: '>=18'
@@ -4509,7 +4509,7 @@ snapshots:
     dependencies:
       '@floating-ui/core': 1.2.0
 
-  '@flycut/timeline-kit@0.2.0(vue@3.2.47)':
+  '@flycut/timeline-kit@0.2.1(vue@3.2.47)':
     optionalDependencies:
       vue: 3.2.47
 
