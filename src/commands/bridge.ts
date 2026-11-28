@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { runCommand } from './index';
 
-export type BridgeStatus = 'off' | 'connecting' | 'connected' | 'replaced' | 'unpaired';
+export type BridgeStatus = 'off' | 'connecting' | 'connected' | 'replaced' | 'unpaired' | 'insecure';
 
 const enabledKey = 'flycut.mcpBridge';
 const portKey = 'flycut.mcpPort';
@@ -20,10 +20,25 @@ function randomHex() {
   return Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function hmac(key: string, message: string) {
-  const encoder = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey('raw', encoder.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
+const keys = new Map<string, Promise<CryptoKey>>();
+
+/** 与本地服务相同：配对码经 PBKDF2 派生出 HMAC 密钥 */
+function pairingKey(code: string) {
+  let key = keys.get(code);
+  if (!key) {
+    const encoder = new TextEncoder();
+    key = crypto.subtle.importKey('raw', encoder.encode(code), 'PBKDF2', false, ['deriveKey'])
+      .then(base => crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: encoder.encode('flycut-mcp-pairing'), iterations: 200000, hash: 'SHA-256' },
+        base, { name: 'HMAC', hash: 'SHA-256', length: 256 }, false, ['sign']
+      ));
+    keys.set(code, key);
+  }
+  return key;
+}
+
+async function hmac(code: string, message: string) {
+  const signature = await crypto.subtle.sign('HMAC', await pairingKey(code), new TextEncoder().encode(message));
   return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -37,6 +52,11 @@ export function bridgeEnabled() {
 
 function connect() {
   window.clearTimeout(retry);
+  // 非 localhost 的 HTTP 页面没有 crypto.subtle，无法完成配对
+  if (!window.crypto?.subtle) {
+    bridgeStatus.value = 'insecure';
+    return;
+  }
   if (!pairingCode()) {
     bridgeStatus.value = 'unpaired';
     return;

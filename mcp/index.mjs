@@ -2,7 +2,7 @@
 /* eslint-env node */
 // FlyCut 本地 MCP 服务：通过 stdio 与 AI 客户端通信，通过 localhost WebSocket 把命令转发给浏览器中打开的编辑器
 import { chmod, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createHmac, pbkdf2Sync, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
@@ -45,14 +45,16 @@ async function loadPairingCode() {
   } catch {
     // 首次运行时生成
   }
-  const code = Array.from({ length: 10 }, () => codeAlphabet[randomInt(codeAlphabet.length)]).join('');
+  const code = Array.from({ length: 12 }, () => codeAlphabet[randomInt(codeAlphabet.length)]).join('');
   await mkdir(path.dirname(codeFile), { recursive: true, mode: 0o700 });
   await writeFile(codeFile, `${code}\n`, { mode: 0o600 });
   await chmod(codeFile, 0o600);
   return code;
 }
 const pairingCode = await loadPairingCode();
-const proof = (role, clientNonce, serverNonce) => createHmac('sha256', pairingCode).update(`flycut-pair:${role}:${clientNonce}:${serverNonce}`)
+// HMAC 的密钥由配对码经 PBKDF2 慢哈希得到，即使有人截获证明，也无法离线快速穷举配对码
+const pairingKey = pbkdf2Sync(pairingCode, 'flycut-mcp-pairing', 200000, 32, 'sha256');
+const proof = (role, clientNonce, serverNonce) => createHmac('sha256', pairingKey).update(`flycut-pair:${role}:${clientNonce}:${serverNonce}`)
   .digest('hex');
 const isNonce = value => typeof value === 'string' && /^[0-9a-f]{32,128}$/.test(value);
 function proofMatches(actual, expected) {

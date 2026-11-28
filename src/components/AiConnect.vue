@@ -12,7 +12,7 @@
         <ElSwitch class="mcp-bridge-switch" :model-value="bridgeOn" @change="onBridge" />
       </div>
       <p class="text-xs text-gray-500">{{ bridgeText }}</p>
-      <div v-if="bridgeOn" class="flex items-center gap-2">
+      <div v-if="bridgeOn && bridgeStatus !== 'insecure'" class="flex items-center gap-2">
         <ElInput v-model="code" class="mcp-pairing-code" size="small" placeholder="配对码" @keyup.enter="onPair" />
         <ElButton size="small" :disabled="!code.trim()" @click="onPair">配对</ElButton>
       </div>
@@ -36,7 +36,7 @@
   const dotClass = computed(() => ({
     'bg-green-500': bridgeStatus.value === 'connected' || webMcpActive.value,
     'bg-yellow-500': bridgeStatus.value === 'connecting' && !webMcpActive.value,
-    'bg-red-500': bridgeStatus.value === 'unpaired' && !webMcpActive.value,
+    'bg-red-500': (bridgeStatus.value === 'unpaired' || bridgeStatus.value === 'insecure') && !webMcpActive.value,
     'bg-gray-400': (bridgeStatus.value === 'off' || bridgeStatus.value === 'replaced') && !webMcpActive.value
   }));
   const bridgeText = computed(() => ({
@@ -44,6 +44,7 @@
     connecting: `正在连接 ws://127.0.0.1:${bridgePort}，请确认本地 MCP 服务已启动`,
     connected: '已连接本地 MCP 服务',
     replaced: '另一个标签页已连接本地 MCP 服务，重新打开开关可切回本页',
+    insecure: '本地 MCP 服务需要通过 https 或 localhost 打开 FlyCut 才能配对',
     unpaired: '请输入配对码：本地 MCP 服务启动时会打印配对码，也可以让 AI 调用 get_pairing_code 获取'
   }[bridgeStatus.value]));
 

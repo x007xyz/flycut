@@ -32,7 +32,7 @@ Editing commands (read the timeline, import assets, add/update/trim/split/delete
    ```
 2. Open FlyCut in the browser, click "AI" in the header, turn on "本地 MCP 服务" and enter the pairing code once (the browser remembers it). The editor connects to `ws://127.0.0.1:4010`.
 
-The pairing code stops other programs on the same computer from posing as the editor or as the server: both sides prove they know the code with an HMAC over random nonces, so the code itself is never sent. It is generated on first run and saved in `~/.flycut/mcp-pairing-code` (readable only by you); the server prints it to its log on startup, and the AI client can read it with the `get_pairing_code` tool. Set `FLYCUT_MCP_CODE` to choose your own code.
+The pairing code stops other programs on the same computer from posing as the editor or as the server: both sides prove they know the code with an HMAC over random nonces, so the code itself is never sent (the HMAC key is derived with PBKDF2 to slow down guessing). Pairing needs a secure context: open FlyCut on `localhost` or over HTTPS. It is generated on first run and saved in `~/.flycut/mcp-pairing-code` (readable only by you); the server prints it to its log on startup, and the AI client can read it with the `get_pairing_code` tool. Set `FLYCUT_MCP_CODE` to choose your own code.
 
 Only pages listed in `FLYCUT_ALLOWED_ORIGINS` (default `http://localhost:4008,http://127.0.0.1:4008`) may connect; change the port with `FLYCUT_MCP_PORT`. The local server adds an `import_file` tool that imports a file by absolute path.
 
