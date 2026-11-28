@@ -55,26 +55,26 @@ describe('saveRenderedVideo', () => {
       }
     }, { highWaterMark: 0 });
 
-    await expect(saveRenderedVideo(render, chooseDestination)).rejects.toThrow('Encoder failed');
+    await expect(saveRenderedVideo(target => render().pipeTo(target), chooseDestination)).rejects.toThrow('Encoder failed');
     expect(chooseDestination).not.toHaveBeenCalled();
     expect(removeEntry).toHaveBeenCalledOnce();
   });
 
   it('rejects an empty render without creating a destination', async() => {
     const chooseDestination = vi.fn();
-    await expect(saveRenderedVideo(() => readable(), chooseDestination)).rejects.toThrow('no data');
+    await expect(saveRenderedVideo(target => readable().pipeTo(target), chooseDestination)).rejects.toThrow('no data');
     expect(chooseDestination).not.toHaveBeenCalled();
     expect(removeEntry).toHaveBeenCalledOnce();
   });
 
   it('cleans up after a canceled save and can retry', async() => {
     const render = () => readable([1, 2, 3]);
-    await expect(saveRenderedVideo(render, async() => undefined)).resolves.toBe(false);
+    await expect(saveRenderedVideo(target => render().pipeTo(target), async() => undefined)).resolves.toBe(false);
     expect(removeEntry).toHaveBeenCalledOnce();
 
     stagedBytes = [];
     const savedBytes: number[] = [];
-    await expect(saveRenderedVideo(render, async() => new WritableStream<Uint8Array>({
+    await expect(saveRenderedVideo(target => render().pipeTo(target), async() => new WritableStream<Uint8Array>({
       write(chunk) {
         savedBytes.push(...chunk);
       }

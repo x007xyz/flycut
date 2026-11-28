@@ -1,8 +1,6 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
 import { getTextRect } from '@/utils/common';
-import { ImgClip, OffscreenSprite } from '@webav/av-cliper';
-import { UnitFrame2μs } from '@/data/trackConfig';
 
 export interface TextSource {
   content: string,
@@ -168,25 +166,4 @@ export class TextTrack implements BaseTractItem {
   start: number;
   end: number;
   format: string;
-  // 生成合成对象
-  async combine(playerSize: { width: number, height: number }, outputRatio: number) {
-    const canvas = new OffscreenCanvas(this.drawWidth, this.drawHeight);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('ctx is null');
-    }
-    this.draw(ctx, { width: this.drawWidth, height: this.drawHeight }, 0);
-    const clip = new ImgClip(await createImageBitmap(canvas));
-
-    await clip.ready;
-    const spr = new OffscreenSprite(clip);
-    // TODO：需要支持裁剪
-    spr.time = { offset: this.start * UnitFrame2μs, duration: this.frameCount * UnitFrame2μs };
-    spr.rect.x = this.getDrawX(playerSize.width) * outputRatio;
-    spr.rect.y = this.getDrawY(playerSize.height) * outputRatio;
-    spr.rect.w = this.drawWidth * outputRatio;
-    spr.rect.h = this.drawHeight * outputRatio;
-
-    return spr;
-  }
 }

@@ -39,8 +39,7 @@
   import { usePageState } from '@/stores/pageState';
   import { useTrackState } from '@/stores/trackState';
   import { usePlayerState } from '@/stores/playerState';
-  import { AudioTrack } from '@/class/AudioTrack';
-  import { Combinator } from '@webav/av-cliper';
+  import { isExportSupported, renderTimeline, type Track } from '@/utils/renderTimeline';
   import { createFileWriter } from '@/utils/common';
   import { saveRenderedVideo } from '@/utils/videoExport';
   import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
@@ -87,39 +86,15 @@
     }
 
     const loading = ElLoading.service({ text: '正在合成视频' });
-    const options = {
-      width: 1080,
-      height: 1920,
-      bgColor: 'black',
-      videoCodec: 'avc1.42E032',
-      bitrate: 5e6,
-      audioCodec: 'opus' as const
-    };
-    let com: Combinator | undefined;
     try {
-      if (!await Combinator.isSupported(options)) {
+      if (!await isExportSupported()) {
         ElMessage.error('当前浏览器不支持 MP4 所需的 H.264 或 Opus 编码，请更换浏览器后重试');
         return;
       }
 
-      const tracks = toRaw(trackState.trackList).flatMap(({ list }) => list);
+      const tracks = toRaw(trackState.trackList).flatMap(({ list }) => list.map(track => toRaw(track) as Track));
       const playerSize = { width: playerState.playerWidth, height: playerState.playerHeight };
-      com = new Combinator(options);
-      const compositor = com;
-      const prepared = await Promise.allSettled(tracks.map(async(track, index) => {
-        const rawTrack = toRaw(track);
-        const sprite = await (rawTrack instanceof AudioTrack ? rawTrack.combine() : rawTrack.combine(playerSize, 6));
-        try {
-          sprite.zIndex = 999 - index;
-          await compositor.addSprite(sprite);
-        } finally {
-          sprite.destroy();
-        }
-      }));
-      const failed = prepared.find(result => result.status === 'rejected');
-      if (failed?.status === 'rejected') throw failed.reason;
-
-      const saved = await saveRenderedVideo(() => compositor.output(), () => {
+      const saved = await saveRenderedVideo(target => renderTimeline(tracks, playerSize, target), () => {
         loading.close();
         return chooseDestination();
       });
@@ -128,7 +103,6 @@
       console.error(error);
       ElMessage.error('导出视频失败，请重试');
     } finally {
-      com?.destroy();
       loading.close();
     }
   }

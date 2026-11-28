@@ -1,8 +1,7 @@
 import { uniqueId } from 'lodash-es';
 import type { BaseTractItem, TrackType } from './Base';
 import { imageDecoder } from '@/utils/webcodecs';
-import { OffscreenSprite } from '@webav/av-cliper';
-import { UnitFrame2μs } from '@/data/trackConfig';
+import { baseFps } from '@/data/trackConfig';
 
 export interface ImageSource {
   id: string,
@@ -66,14 +65,10 @@ export class ImageTrack implements BaseTractItem {
   getDrawY(height: number) {
     return height / 2 - this.drawHeight / 2 + this.centerY;
   }
-  draw(ctx: CanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
-    const frame = Math.max(frameIndex - this.start, 0); // 默认展示首帧
-    return imageDecoder.getFrame(this.source.format, this.source.id, frame).then(vf => {
-        try {
-          ctx.drawImage(vf, 0, 0, this.source.width, this.source.height, this.getDrawX(width), this.getDrawY(height), this.drawWidth, this.drawHeight);
-        } finally {
-          vf.close();
-        }
+  draw(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, { width, height }: { width: number, height: number }, frameIndex: number) {
+    const time = Math.max(frameIndex - this.start, 0) / baseFps;
+    return imageDecoder.getFrame(this.source.id, time, this.source.format).then(image => {
+      ctx.drawImage(image, this.getDrawX(width), this.getDrawY(height), this.drawWidth, this.drawHeight);
     });
   }
   resize({ width, height }: { width: number, height: number }) {
@@ -87,18 +82,5 @@ export class ImageTrack implements BaseTractItem {
     }
     this.width = this.source.width * scale;
     this.height = this.source.height * scale;
-  }
-  // 生成合成对象
-  async combine(playerSize: { width: number, height: number }, outputRatio: number) {
-    const clip = await imageDecoder.decode({ id: this.source.id, type: this.source.format });
-    const spr = new OffscreenSprite(await clip.clone());
-    // TODO：需要支持裁剪
-    spr.time = { offset: this.start * UnitFrame2μs, duration: this.frameCount * UnitFrame2μs };
-    spr.rect.x = this.getDrawX(playerSize.width) * outputRatio;
-    spr.rect.y = this.getDrawY(playerSize.height) * outputRatio;
-    spr.rect.w = this.drawWidth * outputRatio;
-    spr.rect.h = this.drawHeight * outputRatio;
-
-    return spr;
   }
 }

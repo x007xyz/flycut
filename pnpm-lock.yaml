@@ -4,14 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@webav/av-cliper@1.2.8':
-    hash: tqitq3trtcmr5uxpkai76m6lhq
-    path: patches/@webav__av-cliper@1.2.8.patch
-  '@webav/internal-utils@1.2.8':
-    hash: pyzyj4ea2o63tqgcl2z57xb5r4
-    path: patches/@webav__internal-utils@1.2.8.patch
-
 importers:
 
   .:
@@ -31,12 +23,6 @@ importers:
       '@vueuse/core':
         specifier: ^10.9.0
         version: 10.9.0(vue@3.2.47)
-      '@webav/av-canvas':
-        specifier: 1.2.8
-        version: 1.2.8
-      '@webav/av-cliper':
-        specifier: 1.2.8
-        version: 1.2.8(patch_hash=tqitq3trtcmr5uxpkai76m6lhq)
       axios:
         specifier: ^1.3.2
         version: 1.3.2
@@ -49,6 +35,9 @@ importers:
       lodash-es:
         specifier: ^4.17.21
         version: 4.17.21
+      mediabunny:
+        specifier: 1.66.5
+        version: 1.66.5
       opfs-tools:
         specifier: ^0.4.1
         version: 0.4.1
@@ -943,6 +932,12 @@ packages:
   '@types/chai@4.3.4':
     resolution: {integrity: sha512-KnRanxnpfpjUTqTCXslZSEdLfXExwgNxYPdiO2WGUj8+HDjFi8R3k5RVKPeSCzLjCcshCAtVO2QBbVuAV4kTnw==}
 
+  '@types/dom-mediacapture-transform@0.1.12':
+    resolution: {integrity: sha512-d7/QsLRwF864A5mgIM/YrfiglHoYn7zgCcAoJgW404r+2DwnNr7EBbLnCWpmOMgH8y0te73L1AV6H1bmauaWFw==}
+
+  '@types/dom-webcodecs@0.1.13':
+    resolution: {integrity: sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==}
+
   '@types/estree@1.0.0':
     resolution: {integrity: sha512-WulqXMDUTYAXCjZnk6JtIHPigp55cVtDgDrO2gHRwhyJto21+1zbVCtOYB2L1F9w4qCQ0rOGWBnBe0FNTiEJIQ==}
 
@@ -1192,18 +1187,6 @@ packages:
 
   '@vueuse/shared@9.12.0':
     resolution: {integrity: sha512-TWuJLACQ0BVithVTRbex4Wf1a1VaRuSpVeyEd4vMUWl54PzlE0ciFUshKCXnlLuD0lxIaLK4Ypj3NXYzZh4+SQ==}
-
-  '@webav/av-canvas@1.2.8':
-    resolution: {integrity: sha512-j7wvlmdQcwSeMDPiOjfnw2LR/+F/yqYScs9dzwh8SHQre6nnnxS/eOPBghhgVx/RlqFk6VR4UYtnXlhfgnhWtA==}
-
-  '@webav/av-cliper@1.2.8':
-    resolution: {integrity: sha512-lxCXgP5AJsl+6xRo1puU5lTv7rAsxX9StQVK8xYdbg02p9FswCt76iTPqNxmlJ0ZfV1g+lmyNufLXu/qBAnJnA==}
-
-  '@webav/internal-utils@1.2.8':
-    resolution: {integrity: sha512-ZiEXl4U6PRqotkux0eTUdVn5zxbzXYm4Xfjt+HvH5bowwGSJVho/mmbPrdPf3ZRtfIu0aWCWa04LUDBQuY5ltA==}
-
-  '@webav/mp4box.js@0.5.7':
-    resolution: {integrity: sha512-KgScEtDpiLnWvj1Rj8Ri9fDWxTjfdNr7cmY/PT88EmttHh6cLxMAeyD/W8Vydes4z7qV/c5VDAaP4cTlaO0E9g==}
 
   abab@2.0.6:
     resolution: {integrity: sha512-j2afSsaIENvHZN2B8GOpF566vZ5WVk5opAiMTvWgaQT8DkbOqsTfvNAvHoRGU2zzP8cPoqys+xHTRDWW8L+/BA==}
@@ -2311,6 +2294,9 @@ packages:
   mdn-data@2.0.14:
     resolution: {integrity: sha512-dn6wd0uw5GsdswPFfsgMp5NSB0/aDe6fK94YJV/AJDYXL6HVLWBsxeq7js7Ad+mU2K9LAlwpk6kN2D5mwCPVow==}
 
+  mediabunny@1.66.5:
+    resolution: {integrity: sha512-g2H+TdA0cKszM4ZKae9JszxWKLUpmte1Je/F9TY5Et0uO9a6k82V7HGrI3X9RT6ILFOK3Vi2nB9SjifWn5yyPw==}
+
   memoize-one@6.0.0:
     resolution: {integrity: sha512-rkpe71W0N0c0Xz6QD0eJETuWAJGnJ9afsl1srmwPrI+yBCkge5EycXXbYRyvL29zZVUWQCY7InPRCv3GDXuZNw==}
 
@@ -2509,9 +2495,6 @@ packages:
 
   opfs-tools@0.4.1:
     resolution: {integrity: sha512-yXmcZ7LVDzOxfTV1eXdWQL20rm+8f1uQqTLYD/kuh6d/7qBWoAXKcYqOQITfReyNR9k/6pOIdgmIT1FEACMeJw==}
-
-  opfs-tools@0.7.5:
-    resolution: {integrity: sha512-dXLd3n0JlYriBAoyxDsTVBYNhpITQgC8Je6B7nq9idI7RFSsQEtKlVQIb7wpBa7BsZJrfAim5CFPOrccniOMHQ==}
 
   optionator@0.8.3:
     resolution: {integrity: sha512-+IW9pACdk3XWmmTXG8m3upGUJst5XRGzxMRjXzAuJ1XnIFNvfhjjIuYkDvysnPQ7qzqVzLt78BCruntqRhWQbA==}
@@ -3479,10 +3462,6 @@ packages:
   w3c-xmlserializer@4.0.0:
     resolution: {integrity: sha512-d+BFHzbiCx6zGfz0HyQ6Rg69w9k19nviJspaj4yNscGjrHu94sVP+aRm75yEbCh+r2/yR+7q6hux9LVtbuTGBw==}
     engines: {node: '>=14'}
-
-  wave-resampler@1.0.0:
-    resolution: {integrity: sha512-bE3rbpZXuKAV52Cd8/BeJvy82ZqEHK8pPWHrZ9JioaVVTBlmWbDC+u4p9blhFcf0Skepb4hlOAHc25XfqLC48g==}
-    engines: {node: '>=8'}
 
   wavesurfer.js@7.7.11:
     resolution: {integrity: sha512-27otJlDBcUSbMh/YkxEZN0yXTHINQNYSOl5aJplYlIaHw2u3BrABUzOmUZV3dKIy8udOLJXS/67y5pOIzgAg+w==}
@@ -4523,6 +4502,12 @@ snapshots:
 
   '@types/chai@4.3.4': {}
 
+  '@types/dom-mediacapture-transform@0.1.12':
+    dependencies:
+      '@types/dom-webcodecs': 0.1.13
+
+  '@types/dom-webcodecs@0.1.13': {}
+
   '@types/estree@1.0.0': {}
 
   '@types/js-cookie@3.0.2': {}
@@ -4891,24 +4876,6 @@ snapshots:
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
-
-  '@webav/av-canvas@1.2.8':
-    dependencies:
-      '@webav/av-cliper': 1.2.8(patch_hash=tqitq3trtcmr5uxpkai76m6lhq)
-      '@webav/internal-utils': 1.2.8(patch_hash=pyzyj4ea2o63tqgcl2z57xb5r4)
-
-  '@webav/av-cliper@1.2.8(patch_hash=tqitq3trtcmr5uxpkai76m6lhq)':
-    dependencies:
-      '@webav/internal-utils': 1.2.8(patch_hash=pyzyj4ea2o63tqgcl2z57xb5r4)
-      '@webav/mp4box.js': 0.5.7
-      opfs-tools: 0.7.5
-      wave-resampler: 1.0.0
-
-  '@webav/internal-utils@1.2.8(patch_hash=pyzyj4ea2o63tqgcl2z57xb5r4)':
-    dependencies:
-      '@webav/mp4box.js': 0.5.7
-
-  '@webav/mp4box.js@0.5.7': {}
 
   abab@2.0.6: {}
 
@@ -6163,6 +6130,11 @@ snapshots:
 
   mdn-data@2.0.14: {}
 
+  mediabunny@1.66.5:
+    dependencies:
+      '@types/dom-mediacapture-transform': 0.1.12
+      '@types/dom-webcodecs': 0.1.13
+
   memoize-one@6.0.0: {}
 
   memory-fs@0.5.0:
@@ -6338,8 +6310,6 @@ snapshots:
       is-wsl: 3.1.0
 
   opfs-tools@0.4.1: {}
-
-  opfs-tools@0.7.5: {}
 
   optionator@0.8.3:
     dependencies:
@@ -7355,8 +7325,6 @@ snapshots:
   w3c-xmlserializer@4.0.0:
     dependencies:
       xml-name-validator: 4.0.0
-
-  wave-resampler@1.0.0: {}
 
   wavesurfer.js@7.7.11: {}
 

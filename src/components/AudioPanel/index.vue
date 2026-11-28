@@ -10,7 +10,6 @@
 <script setup lang="ts">
   import { usePlayerState } from '@/stores/playerState';
   import { useTrackState } from '@/stores/trackState';
-  import { AudioClip } from '@webav/av-cliper';
   import { ElMessage } from 'element-plus';
   import { selectFile } from '@/utils/file';
   import { getMD5 } from '@/class/Base';
@@ -46,7 +45,7 @@
       url: URL.createObjectURL(files[0]),
       name: files[0].name,
       format: files[0].type,
-      duration: Math.round(clip.meta.duration / 1e6)
+      duration: Math.round(clip.meta.duration)
     }, playStore.playStartFrame);
 
     trackStore.addTrack(audioTrack);

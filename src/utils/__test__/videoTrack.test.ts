@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { VideoTrack } from '@/class/VideoTrack';
 import { useTrackState } from '@/stores/trackState';
 
-vi.mock('@webav/av-cliper', () => ({}));
 vi.mock('@/utils/webcodecs', () => ({}));
 
 const source = {
