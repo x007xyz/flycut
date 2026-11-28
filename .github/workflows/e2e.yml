@@ -12,6 +12,7 @@ jobs:
           node-version: 22
       - run: corepack enable && corepack prepare pnpm@9.10.0 --activate
       - run: pnpm install --frozen-lockfile
+      - run: pnpm test:unit
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v4

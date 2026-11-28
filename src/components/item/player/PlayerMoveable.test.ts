@@ -5,6 +5,13 @@ import { nextTick } from 'vue';
 import PlayerMoveable from './PlayerMoveable.vue';
 import { useTrackState } from '@/stores/trackState';
 import { usePlayerState } from '@/stores/playerState';
+import { TextTrack } from '@/class/TextTrack';
+
+const textTrack = () => Object.assign(new TextTrack({ content: 'text', fill: '#fff', fontSize: 24, fontFamily: 'Arial', name: 'Text' }, 0), {
+  id: 'text', start: 0, end: 90, scale: 100, centerX: 0, centerY: 0
+});
+
+vi.mock('@/utils/common', () => ({ getTextRect: () => ({ width: 100, height: 50 }) }));
 
 vi.mock('vue3-moveable', () => ({ default: {
   name: 'Moveable',
@@ -18,7 +25,7 @@ describe('preview transform history', () => {
     setActivePinia(pinia);
     const tracks = useTrackState();
     const player = usePlayerState();
-    tracks.addTrack({ id: 'text', type: 'text', start: 0, end: 90, width: 100, height: 50, scale: 100, centerX: 0, centerY: 0, draw() {}, source: {}} as any);
+    tracks.addTrack(textTrack());
     tracks.flushHistory();
     const wrapper = mount(PlayerMoveable, { global: { plugins: [pinia] }});
     await nextTick();
@@ -49,7 +56,7 @@ describe('preview transform history', () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     const tracks = useTrackState();
-    tracks.addTrack({ id: 'text', type: 'text', start: 0, end: 90, width: 100, height: 50, scale: 100, centerX: 0, centerY: 0, draw() {}, source: {}} as any);
+    tracks.addTrack(textTrack());
     tracks.flushHistory();
     const wrapper = mount(PlayerMoveable, { global: { plugins: [pinia] }});
     await nextTick();
