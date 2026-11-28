@@ -76,6 +76,14 @@
       </el-radio-group>
     </div>
   </div>
+  <div class="formItem" v-else-if="componentData.dataType === 'Select'">
+    <span class="formTitle" v-show="componentData.name">{{ componentData.name }}</span>
+    <div class="formContent">
+      <el-select v-model="formValue" size="small" v-bind="componentData.attr">
+        <el-option v-for="option in componentData.options" :key="option.value" :label="option.label" :value="option.value" />
+      </el-select>
+    </div>
+  </div>
   <div class="formItem" v-else-if="componentData.dataType === 'Boolean'">
     <span class="formTitle" v-show="componentData.name">{{ componentData.name }}</span>
     <div class="formContent">

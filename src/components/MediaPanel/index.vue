@@ -51,7 +51,7 @@
   import { ElIcon, ElMessage, ElMessageBox } from 'element-plus';
   import { Loading } from '@element-plus/icons-vue';
   import { selectFile } from '@/utils/file';
-  import { assetDragType, importMedia, insertAsset, mediaAccept } from '@/utils/importMedia';
+  import { assetDragType, ensurePoster, importMedia, insertAsset, mediaAccept } from '@/utils/importMedia';
   import { useResourceState } from '@/stores/resourceStore';
   import { useProjectState } from '@/stores/projectState';
   import { useTrackState } from '@/stores/trackState';
@@ -60,6 +60,12 @@
   const resources = useResourceState();
   const project = useProjectState();
   const tracks = useTrackState();
+  const posterTried = new Set<string>();
+  watch(() => resources.assets, assets => assets.forEach(asset => {
+    if (asset.kind === 'audio' || resources.posters[asset.id] || posterTried.has(asset.id)) return;
+    posterTried.add(asset.id);
+    ensurePoster(asset).catch(error => console.warn(error));
+  }), { immediate: true });
   const icons: Record<AssetKind, string> = { video: 'icon-shipin_line', image: 'icon-tupian_line', audio: 'icon-yinle_line' };
 
   function formatDuration(seconds: number) {

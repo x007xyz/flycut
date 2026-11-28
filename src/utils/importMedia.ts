@@ -31,11 +31,14 @@ export function mediaKind(file: File): MediaKind | null {
   return null;
 }
 
-async function imagePoster(id: string, format: string) {
-  const image = await imageDecoder.getFrame(id, 0, format);
+// 只解码第一帧，不经过共享的图片缓存，避免动图的全部帧常驻内存
+async function imagePoster(id: string) {
+  // 与 ImageDecoder 一致不应用 EXIF 旋转，封面方向和画面一致
+  const image = await createImageBitmap(await assetStore.file(id), { imageOrientation: 'none' });
   const height = Math.max(1, Math.round(posterWidth * image.height / Math.max(image.width, 1)));
   const canvas = new OffscreenCanvas(posterWidth, height);
   canvas.getContext('2d')?.drawImage(image, 0, 0, posterWidth, height);
+  image.close();
   return canvas.convertToBlob({ type: 'image/jpeg', quality: 0.7 });
 }
 
@@ -49,11 +52,22 @@ async function describe(id: string, kind: MediaKind, format: string) {
   if (kind === 'image') {
     const asset = await imageDecoder.decode({ id, type: format });
     const { width, height, duration } = asset.meta;
-    return { meta: { width, height, duration }, poster: () => imagePoster(id, format) };
+    return { meta: { width, height, duration }, poster: () => imagePoster(id) };
   }
   const asset = await audioDecoder.decode({ id, type: format });
   if (!asset || !(asset.meta.duration > 0)) throw new Error('The file has no usable audio track');
   return { meta: { width: 0, height: 0, duration: asset.meta.duration }, poster: async() => null };
+}
+
+/** 补生成缺失的封面（如旧版本导入、没有封面缓存的素材） */
+export async function ensurePoster(record: AssetRecord) {
+  if (record.kind === 'audio' || await assetStore.readCache(record.id, 'poster.jpg')) return;
+  const image = record.kind === 'image'
+    ? await imagePoster(record.id)
+    : await (await describe(record.id, record.kind, record.format)).poster();
+  if (!image) return;
+  await assetStore.writeCache(record.id, 'poster.jpg', image);
+  await useResourceState().loadPoster(record.id);
 }
 
 let pendingKey = 0;

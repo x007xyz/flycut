@@ -1,4 +1,5 @@
 import { uniqueId } from 'lodash-es';
+import { defaultAnimations, type ClipAnimations } from '@/render/animation';
 import type { BaseTractItem, TrackType } from './Base';
 import { getTextRect } from '@/utils/common';
 import { drawText } from '@/render/text';
@@ -15,6 +16,7 @@ export interface TextSource {
 
 export class TextTrack implements BaseTractItem {
   source: TextSource;
+  animations: ClipAnimations = defaultAnimations();
   // 文本内容
   fill: string;
   stroke?: string;

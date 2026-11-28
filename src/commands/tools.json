@@ -161,6 +161,72 @@
     }
   },
   {
+    "name": "set_animation",
+    "description": "Set the entrance (in), exit (out) or loop animation of a video, image or text clip. preset none removes it. in/out presets: fade, left/right/top/bottom (slide from or to that side), zoom-in, zoom-out, pop, blur, rotate, typewriter (text only). loop presets: pulse, float, shake, flicker, spin. duration is in seconds (the loop period for loop); ease is an anime.js easing name, empty for the preset default.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clipId": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "in",
+            "out",
+            "loop"
+          ]
+        },
+        "preset": {
+          "type": "string",
+          "enum": [
+            "none",
+            "fade",
+            "left",
+            "right",
+            "top",
+            "bottom",
+            "zoom-in",
+            "zoom-out",
+            "pop",
+            "blur",
+            "rotate",
+            "typewriter",
+            "pulse",
+            "float",
+            "shake",
+            "flicker",
+            "spin"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "ease": {
+          "type": "string",
+          "enum": [
+            "",
+            "linear",
+            "outQuad",
+            "inQuad",
+            "inOutQuad",
+            "outBack",
+            "outElastic",
+            "outBounce"
+          ]
+        }
+      },
+      "required": [
+        "clipId",
+        "kind",
+        "preset"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "trim_clip",
     "description": "Trim a video or audio clip: trimStart/trimEnd are the seconds of source media cut from its beginning/end. The clip start stays where it is.",
     "inputSchema": {

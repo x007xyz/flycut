@@ -1,7 +1,7 @@
 import type { VideoSample } from 'mediabunny';
 import { imageDecoder, videoDecoder } from '@/utils/webcodecs';
 import type { Layer, Rect, Scene } from './scene';
-import { drawText } from './text';
+import { drawText, layoutText } from './text';
 
 type Context = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 type MediaLayer = Exclude<Layer, { kind: 'text' }>;
@@ -44,11 +44,54 @@ export function drawLayer(ctx: Context, layer: Layer, image: Drawable | null) {
   else if (image) drawMedia(ctx, image, layer.rect);
 }
 
+function boxOf(ctx: Context, layer: Layer): Rect {
+  if (layer.kind !== 'text') return layer.rect;
+  const { width, height } = layoutText(ctx, layer.style);
+  return { x: layer.x, y: layer.y, width, height };
+}
+
+// 动画变换围绕图层中心：先平移，再旋转、缩放
+function drawAnimated(ctx: Context, layer: Layer, image: Drawable | null, scale: number) {
+  const { motion } = layer;
+  if (!motion) {
+    drawLayer(ctx, layer, image);
+    return;
+  }
+  if (motion.opacity <= 0 || motion.scale <= 0) return;
+  // 文字的背景、描边和文字先合成再整体淡化，与预览中整块画布的 opacity 一致
+  if (layer.kind === 'text' && motion.opacity < 1 && typeof OffscreenCanvas !== 'undefined') {
+    const group = new OffscreenCanvas(ctx.canvas.width, ctx.canvas.height);
+    const groupCtx = group.getContext('2d');
+    if (groupCtx) {
+      groupCtx.setTransform(ctx.getTransform());
+      drawAnimated(groupCtx, { ...layer, motion: { ...motion, opacity: 1 }}, image, scale);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha *= motion.opacity;
+      ctx.drawImage(group, 0, 0);
+      ctx.restore();
+      return;
+    }
+  }
+  const box = boxOf(ctx, layer);
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  ctx.save();
+  ctx.globalAlpha *= motion.opacity;
+  if (motion.blur > 0) ctx.filter = `blur(${motion.blur * scale}px)`;
+  ctx.translate(cx + motion.x, cy + motion.y);
+  ctx.rotate(motion.rotate * Math.PI / 180);
+  ctx.scale(motion.scale, motion.scale);
+  ctx.translate(-cx, -cy);
+  drawLayer(ctx, layer, image);
+  ctx.restore();
+}
+
 export function drawFrame(ctx: Context, scene: Scene, { images }: Pick<FrameSources, 'images'>, { scale = 1 } = {}) {
   ctx.save();
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.fillStyle = scene.background;
   ctx.fillRect(0, 0, scene.width, scene.height);
-  scene.layers.forEach((layer, index) => drawLayer(ctx, layer, images[index]));
+  scene.layers.forEach((layer, index) => drawAnimated(ctx, layer, images[index], scale));
   ctx.restore();
 }

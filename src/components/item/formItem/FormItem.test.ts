@@ -18,6 +18,8 @@ vi.mock('element-plus/es/components/slider/style/css', () => ({}));
 vi.mock('element-plus/es/components/input/style/css', () => ({}));
 vi.mock('element-plus/es/components/input-number/style/css', () => ({}));
 vi.mock('element-plus/es/components/switch/style/css', () => ({}));
+vi.mock('element-plus/es/components/select/style/css', () => ({}));
+vi.mock('element-plus/es/components/option/style/css', () => ({}));
 
 describe('selected track attribute values', () => {
   it('displays out-of-range scale without writing it back, but accepts user input', async() => {

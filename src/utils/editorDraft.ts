@@ -1,4 +1,5 @@
 import { AudioTrack, type AudioSource } from '@/class/AudioTrack';
+import { activeAnimations, packAnimations, unpackAnimations, validAnimations, withDefaults, type ClipAnimations } from '@/render/animation';
 import { ImageTrack, type ImageSource } from '@/class/ImageTrack';
 import { TextTrack, type TextSource } from '@/class/TextTrack';
 import { VideoTrack, type VideoSource } from '@/class/VideoTrack';
@@ -13,14 +14,15 @@ export const draftKey = 'flycut.editorDraft';
 type Timing = { start: number; end: number; frameCount: number };
 type Placement = { centerX: number; centerY: number; scale: number };
 type Size = { width: number; height: number };
+type Animations = { animations?: Partial<ClipAnimations> };
 type Trim = { offsetL: number; offsetR: number; silent?: boolean };
 type MediaSource = AudioSource | ImageSource | VideoSource;
 
 type DraftTrack = Timing & (
     { type: 'audio'; source: Omit<AudioSource, 'url'>; trim: Trim }
-  | { type: 'video'; source: Omit<VideoSource, 'url'>; trim: Trim; placement: Placement & Size }
-  | { type: 'image'; source: Omit<ImageSource, 'url'>; placement: Placement & Size }
-  | { type: 'text'; source: TextSource; placement: Placement }
+  | ({ type: 'video'; source: Omit<VideoSource, 'url'>; trim: Trim; placement: Placement & Size } & Animations)
+  | ({ type: 'image'; source: Omit<ImageSource, 'url'>; placement: Placement & Size } & Animations)
+  | ({ type: 'text'; source: TextSource; placement: Placement } & Animations)
 );
 
 interface Draft {
@@ -42,7 +44,7 @@ function geometryOf(placement: Placement & Size): Placement & Size {
   return { ...placementOf(placement), width: placement.width, height: placement.height };
 }
 
-function captureTrack(track: Track): DraftTrack {
+function captureBase(track: Track): DraftTrack {
   const { start, end, frameCount } = track;
   const timing = { start, end, frameCount };
   if (track instanceof AudioTrack || track instanceof VideoTrack) {
@@ -61,6 +63,13 @@ function captureTrack(track: Track): DraftTrack {
     ...timing, type: 'text', source: { name, content, fontSize, fontFamily, fill, stroke, textBackgroundColor },
     placement: placementOf(track)
   };
+}
+
+function captureTrack(track: Track): DraftTrack {
+  const captured = captureBase(track);
+  if (track instanceof AudioTrack) return captured;
+  const animations = activeAnimations(track.animations);
+  return animations ? { ...captured, animations } as DraftTrack : captured;
 }
 
 export function captureTimeline(lines: TrackLineItem[]): Draft['lines'] {
@@ -83,6 +92,8 @@ interface PackedClip {
   s: number; e: number; fc?: number;
   l?: number; r?: number; m?: 1;
   x?: number; y?: number; z?: number; w?: number; h?: number;
+  // 动画：{ i: 入场, o: 出场, l: 循环 }，见 packAnimations
+  an?: ReturnType<typeof packAnimations>;
 }
 /**
  * v2 工程格式：素材和文字样式各存一份，片段只存序号；默认值（居中、100% 缩放、无裁剪、未静音、
@@ -151,6 +162,8 @@ function pack({ trackScale, playhead, lines }: Omit<Draft, 'version'>): PackedDr
         clip.h = round(placement.height);
       }
     }
+    const animations = 'animations' in item ? packAnimations(item.animations) : undefined;
+    if (animations) clip.an = animations;
     return clip;
   }
 
@@ -176,14 +189,20 @@ function unpack(packed: Record<string, unknown>): Draft {
     if (type === 'text') {
       const style = styles[clip.st as number];
       if (!record(style)) throw new Error('Invalid text style');
-      return { ...timing, frameCount: clip.fc ?? baseFps * 60, type, source: { ...style, name: clip.n ?? clip.t, content: clip.t }, placement };
+      return compact({
+        ...timing, frameCount: clip.fc ?? baseFps * 60, type, source: { ...style, name: clip.n ?? clip.t, content: clip.t }, placement,
+        animations: unpackAnimations(clip.an)
+      });
     }
     const asset = assets[clip.a as number];
     if (!record(asset)) throw new Error('Invalid asset reference');
     const source = compact({ id: asset.id, name: asset.n, format: asset.f, duration: asset.d, width: asset.w, height: asset.h });
     const item: Record<string, unknown> = { ...timing, type, source };
     if (type !== 'image') item.trim = { offsetL: clip.l ?? 0, offsetR: clip.r ?? 0, silent: clip.m === 1 };
-    if (type !== 'audio') item.placement = { ...placement, width: clip.w, height: clip.h };
+    if (type !== 'audio') {
+      item.placement = { ...placement, width: clip.w, height: clip.h };
+      if (clip.an !== undefined) item.animations = unpackAnimations(clip.an);
+    }
     item.frameCount = clip.fc ?? defaultFrameCount(item as unknown as DraftTrack);
     return item;
   }
@@ -217,8 +236,9 @@ function optionalString(value: unknown) {
 
 function validTrack(track: unknown, type: string) {
   if (!record(track) || track.type !== type || !numbers(track, 'start', 'end', 'frameCount')) return false;
-  const { source, placement, trim } = track;
+  const { source, placement, trim, animations } = track;
   if (!record(source) || !strings(source, 'name')) return false;
+  if (animations !== undefined && (type === 'audio' || !validAnimations(animations))) return false;
   if (type === 'text') {
     return numbers(placement, 'centerX', 'centerY', 'scale') && numbers(source, 'fontSize')
       && strings(source, 'content', 'fill', 'fontFamily')
@@ -275,7 +295,7 @@ export async function restoreDraft(json: string) {
     const { start, end, frameCount, type } = item;
     const timing = { start, end, frameCount };
     if (type === 'text') {
-      return Object.assign(new TextTrack(item.source, start), timing, placementOf(item.placement));
+      return Object.assign(new TextTrack(item.source, start), timing, placementOf(item.placement), { animations: withDefaults(item.animations) });
     }
 
     const { id, format } = item.source;
@@ -299,10 +319,12 @@ export async function restoreDraft(json: string) {
       return Object.assign(new AudioTrack({ ...item.source, url }, start), timing, { offsetL, offsetR, silent });
     }
     if (type === 'image') {
-      return Object.assign(new ImageTrack({ ...item.source, url }, start), timing, geometryOf(item.placement));
+      return Object.assign(new ImageTrack({ ...item.source, url }, start), timing, geometryOf(item.placement), { animations: withDefaults(item.animations) });
     }
     const { offsetL, offsetR, silent } = item.trim;
-    return Object.assign(new VideoTrack({ ...item.source, url }, start), timing, geometryOf(item.placement), { offsetL, offsetR, silent });
+    return Object.assign(new VideoTrack({ ...item.source, url }, start), timing, geometryOf(item.placement), {
+      offsetL, offsetR, silent, animations: withDefaults(item.animations)
+    });
   }
 
   const lines: TrackLineItem[] = await Promise.all(draft.lines.map(async({ type, main, tracks }) => ({

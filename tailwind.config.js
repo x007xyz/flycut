@@ -29,10 +29,32 @@ module.exports = {
         '22': '5.5rem'
       },
       colors: {
-        'dark': 'rgb(32, 32, 35)',
-        'darker': 'rgb(18, 18, 18)',
-        'light': '#F5F5F5',
-        'lighter': '#FAFAFA',
+        'dark': '#1b1c20',
+        'darker': '#111215',
+        'light': '#ece8df',
+        'lighter': '#f5f2eb',
+        'accent': '#ff735c',
+        // 暖灰色阶，取自品牌配色（ink / panel / line / muted / paper）
+        gray: {
+          50: '#f5f2eb',
+          100: '#ece8df',
+          200: '#dcd7cc',
+          300: '#c9c4ba',
+          400: '#b8b6be',
+          500: '#77717a',
+          600: '#595653',
+          700: '#3a3a42',
+          800: '#212227',
+          900: '#1b1c20',
+          950: '#111215'
+        },
+        zinc: {
+          100: '#ece8df',
+          200: '#dcd7cc',
+          700: '#212227'
+        },
+        indigo: { 400: '#ff735c' },
+        blue: { 400: '#ff735c' },
       },
     }
   },

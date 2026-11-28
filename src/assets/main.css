@@ -1,16 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+:root {
+    --ink: #111215;
+    --panel: #1b1c20;
+    --panel-raised: #212227;
+    --dark-line: #33343b;
+    --paper: #f5f2eb;
+    --paper-line: #dcd7cc;
+    --muted: #b8b6be;
+    --paper-muted: #595653;
+    --accent: #ff735c;
+    --heading: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    --el-color-primary: #ff735c;
+    --el-color-primary-light-3: #ff9d8d;
+    --el-color-primary-light-5: #ffb9ae;
+    --el-color-primary-light-7: #ffd5ce;
+    --el-color-primary-light-8: #ffe3de;
+    --el-color-primary-light-9: #fff1ef;
+    --el-color-primary-dark-2: #cc5c4a;
+}
+.dark {
+    color-scheme: dark;
+    --el-color-primary-light-3: #b85a4c;
+    --el-color-primary-light-5: #8f4a40;
+    --el-color-primary-light-7: #653a34;
+    --el-color-primary-light-8: #51322d;
+    --el-color-primary-light-9: #3c2a27;
+    --el-color-primary-dark-2: #ff927e;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.moveable-control-box { --moveable-color: #ff735c; }
 html, body, #vite-app {
     @apply w-full h-full bg-gray-50 text-gray-800 tracking-wide select-none overflow-hidden;
     @apply min-w-1256 min-h-600;
-    @apply dark:bg-dark dark:text-white;
+    @apply dark:bg-darker dark:text-gray-50;
 }
 ::-webkit-scrollbar {/*滚动条整体样式*/
     @apply w-1 h-1;
 }
-/* rgb(18, 18, 18) */
-/* rgb(32, 32, 35) */
 .trackList ::-webkit-scrollbar{
     @apply w-2 h-2;
 }
@@ -36,41 +65,41 @@ html, body, #vite-app {
 }
 /* element style*/
 body .el-popper.is-dark {
-    background-color: #4B5563;
+    background-color: #33343b;
 }
 body .el-popper.is-dark .el-popper__arrow::before{
-    background-color: #4B5563;
+    background-color: #33343b;
 }
 body .el-slider{
     --el-slider-button-size: 16px;
     --el-slider-height: 4px;
-    --el-slider-main-bg-color: #818CF8;
-    --el-slider-runway-bg-color: #D1D5DB
+    --el-slider-main-bg-color: #ff735c;
+    --el-slider-runway-bg-color: #dcd7cc
 }
 body .el-slider__button{
     border-width: 1px;
-    border-color: #afbfda;
+    border-color: #ff927e;
 }
 body .el-switch{
-    --el-switch-on-color: #374151;
-    --el-switch-off-color: #E5E7EB;
+    --el-switch-on-color: #212227;
+    --el-switch-off-color: #f5f2eb;
 }
 
 body .el-tabs {
-    --el-text-color-primary: #E5E7EB;
-    --el-bg-color-overlay: #1F2937;
-    --el-border-color: #6B7280;
+    --el-text-color-primary: #f5f2eb;
+    --el-bg-color-overlay: #1b1c20;
+    --el-border-color: #77717a;
 
 }
 body .el-tabs--border-card{
     --el-tabs-header-height: 32px;
 }
 body .el-popper.is-dark .el-popper__arrow::before{
-    background-color: #4B5563;
+    background-color: #33343b;
 }
 body .el-tabs__nav-wrap::after{
     height: 1px;
-    --el-border-color-light: #4B5563
+    --el-border-color-light: #33343b
 }
 body .el-tabs__item.is-active{
     @apply dark:text-gray-200 text-gray-600;
@@ -101,44 +130,44 @@ body .el-tabs--border-card .el-tabs__content {
     @apply pl-0 pr-0 pt-0 top-14;
 }
 body .el-collapse{
-    --el-collapse-border-color: #D1D5DB;
+    --el-collapse-border-color: #dcd7cc;
     --el-collapse-header-height: 38px;
-    --el-collapse-header-bg-color: #D1D5DB;
-    --el-collapse-header-text-color: #1F2937;
+    --el-collapse-header-bg-color: #dcd7cc;
+    --el-collapse-header-text-color: #1b1c20;
     --el-collapse-header-font-size: 14px;
-    --el-collapse-content-bg-color: #F9FAFB;
+    --el-collapse-content-bg-color: #faf8f3;
     --el-collapse-content-font-size: 12px;
-    --el-collapse-content-text-color: #1F2937;
+    --el-collapse-content-text-color: #1b1c20;
     border-top: none;
     border-bottom: none;
 }
 .dark body .el-collapse {
-    --el-collapse-border-color: #1F2937;
+    --el-collapse-border-color: #1b1c20;
     --el-collapse-header-height: 38px;
-    --el-collapse-header-bg-color: #374151;
-    --el-collapse-header-text-color: #E5E7EB;
+    --el-collapse-header-bg-color: #212227;
+    --el-collapse-header-text-color: #f5f2eb;
     --el-collapse-header-font-size: 14px;
-    --el-collapse-content-bg-color: #1F2937;
+    --el-collapse-content-bg-color: #1b1c20;
     --el-collapse-content-font-size: 12px;
-    --el-collapse-content-text-color: #E5E7EB;
+    --el-collapse-content-text-color: #f5f2eb;
     border-top: none;
     border-bottom: none;
 }
 .dark body .el-input{
-    --el-input-bg-color:  #374151;
-    --el-text-color-regular: #E5E7EB;
+    --el-input-bg-color:  #212227;
+    --el-text-color-regular: #f5f2eb;
 }
 .dark body .el-input-number{
-    --el-fill-color-light: #374151;
-    --el-text-color-regular: #E5E7EB;
+    --el-fill-color-light: #212227;
+    --el-text-color-regular: #f5f2eb;
 }
 .dark .el-textarea {
-    --el-input-bg-color: #374151;
-    --el-input-text-color: #E5E7EB;
+    --el-input-bg-color: #212227;
+    --el-input-text-color: #f5f2eb;
 }
 .dark body .el-switch{
-    --el-switch-on-color: #374151;
-    --el-switch-off-color: #E5E7EB;
+    --el-switch-on-color: #212227;
+    --el-switch-off-color: #f5f2eb;
 }
 body .el-collapse-item__content{
     @apply pl-0 pr-2 pb-2 pt-2;
@@ -169,9 +198,9 @@ body .el-input-number.is-controls-right .el-input-number__increase{
     @apply border-gray-500;
 }
 body .el-popover{
-    --el-popover-bg-color: #374151;
+    --el-popover-bg-color: #212227;
     --el-popover-font-size: 14;
-    --el-popover-border-color: #374151;
+    --el-popover-border-color: #212227;
     --el-popover-padding: 0px;
 }
 .el-loading-mask.is-fullscreen {

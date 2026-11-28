@@ -53,6 +53,11 @@ test('the local MCP server edits the project open in the browser', async({ page 
     expect(await call('update_clip', { clipId: text.id, y: -40, fontSize: 40 })).toMatchObject({ y: -40, fontSize: 40 });
     await expect(call('update_clip', { clipId: video.id, fontSize: 40 })).rejects.toThrow('apply to text clips');
     await expect(call('update_clip', { clipId: text.id, bogus: 1 })).rejects.toThrow('arguments.bogus is not allowed');
+    expect(await call('set_animation', { clipId: text.id, kind: 'in', preset: 'typewriter', duration: 0.4 }))
+      .toMatchObject({ animations: { in: { preset: 'typewriter', duration: 0.4 }}});
+    await expect(call('set_animation', { clipId: video.id, kind: 'in', preset: 'typewriter' })).rejects.toThrow('typewriter applies to text clips');
+    await expect(call('set_animation', { clipId: video.id, kind: 'loop', preset: 'fade' })).rejects.toThrow('not a loop animation preset');
+    await expect(call('set_animation', { clipId: video.id, kind: 'in', preset: 'wobble' })).rejects.toThrow('arguments.preset must be one of');
 
     // 在片段中间的整帧处分割
     const middle = Math.round(Math.round(video.end * 15) / 30 * 1000) / 1000;
