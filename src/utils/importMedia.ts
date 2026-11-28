@@ -33,7 +33,8 @@ export function mediaKind(file: File): MediaKind | null {
 
 // 只解码第一帧，不经过共享的图片缓存，避免动图的全部帧常驻内存
 async function imagePoster(id: string) {
-  const image = await createImageBitmap(await assetStore.file(id));
+  // 与 ImageDecoder 一致不应用 EXIF 旋转，封面方向和画面一致
+  const image = await createImageBitmap(await assetStore.file(id), { imageOrientation: 'none' });
   const height = Math.max(1, Math.round(posterWidth * image.height / Math.max(image.width, 1)));
   const canvas = new OffscreenCanvas(posterWidth, height);
   canvas.getContext('2d')?.drawImage(image, 0, 0, posterWidth, height);
