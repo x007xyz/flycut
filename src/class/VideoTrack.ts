@@ -81,6 +81,7 @@ export class VideoTrack implements BaseTractItem {
     this.width = this.source.width * scale;
     this.height = this.source.height * scale;
   }
+  silent = false;
   audio: HTMLAudioElement | null = null;
   play(currentFrame: number) {
     if (!this.audio) {
@@ -102,6 +103,7 @@ export class VideoTrack implements BaseTractItem {
     copy.end = this.end;
     copy.offsetL = this.offsetL + cutFrame - this.start;
     copy.offsetR = this.offsetR;
+    copy.silent = this.silent;
 
     this.offsetR += this.end - cutFrame;
     this.end = cutFrame;

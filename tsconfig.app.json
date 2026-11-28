@@ -13,7 +13,9 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "pages/*": ["./src/pages/*"]
+      "pages/*": ["./src/pages/*"],
+      "@flycut/timeline-kit/core": ["./node_modules/@flycut/timeline-kit/dist/types/src/core-entry.d.ts"],
+      "@flycut/timeline-kit/vue": ["./node_modules/@flycut/timeline-kit/dist/types/adapters/vue/index.d.ts"]
     }
   }
 }

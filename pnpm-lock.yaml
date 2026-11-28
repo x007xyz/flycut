@@ -14,6 +14,9 @@ importers:
       '@element-plus/icons-vue':
         specifier: ^2.0.10
         version: 2.0.10(vue@3.2.47)
+      '@flycut/timeline-kit':
+        specifier: 0.2.0
+        version: 0.2.0(vue@3.2.47)
       '@vueuse/core':
         specifier: ^10.9.0
         version: 10.9.0(vue@3.2.47)
@@ -50,9 +53,6 @@ importers:
       vue3-moveable:
         specifier: ^0.18.1
         version: 0.18.1
-      wavesurfer.js:
-        specifier: ^7.7.11
-        version: 7.7.11
     devDependencies:
       '@playwright/test':
         specifier: 1.58.2
@@ -615,6 +615,20 @@ packages:
 
   '@floating-ui/dom@1.2.0':
     resolution: {integrity: sha512-QXzg57o1cjLz3cGETzKXjI3kx1xyS49DW9l7kV2jw2c8Yftd434t2hllX0sVGn2Q8MtcW/4pNm8bfE1/4n6mng==}
+
+  '@flycut/timeline-kit@0.2.0':
+    resolution: {integrity: sha512-Va3h/M4jrsjFeux4S+gkA+ZFzChTaxFZx9LTCD433DhIGn2GeEGmHkY3x3rzYOYp4TOsHbuHgerfTr0LZ01r5A==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+      vue: '>=3.3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      vue:
+        optional: true
 
   '@humanwhocodes/config-array@0.11.8':
     resolution: {integrity: sha512-UybHIJzJnR5Qc/MsD9Kr+RpO2h+/P1GhOwdiLPXK5TWk5sgTdu88bTD9UP+CKbPPh5Rni1u0GjAdYQLemG8g+g==}
@@ -3292,9 +3306,6 @@ packages:
     resolution: {integrity: sha512-d+BFHzbiCx6zGfz0HyQ6Rg69w9k19nviJspaj4yNscGjrHu94sVP+aRm75yEbCh+r2/yR+7q6hux9LVtbuTGBw==}
     engines: {node: '>=14'}
 
-  wavesurfer.js@7.7.11:
-    resolution: {integrity: sha512-27otJlDBcUSbMh/YkxEZN0yXTHINQNYSOl5aJplYlIaHw2u3BrABUzOmUZV3dKIy8udOLJXS/67y5pOIzgAg+w==}
-
   webidl-conversions@7.0.0:
     resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
     engines: {node: '>=12'}
@@ -3849,6 +3860,10 @@ snapshots:
   '@floating-ui/dom@1.2.0':
     dependencies:
       '@floating-ui/core': 1.2.0
+
+  '@flycut/timeline-kit@0.2.0(vue@3.2.47)':
+    optionalDependencies:
+      vue: 3.2.47
 
   '@humanwhocodes/config-array@0.11.8':
     dependencies:
@@ -6847,8 +6862,6 @@ snapshots:
   w3c-xmlserializer@4.0.0:
     dependencies:
       xml-name-validator: 4.0.0
-
-  wavesurfer.js@7.7.11: {}
 
   webidl-conversions@7.0.0: {}
 

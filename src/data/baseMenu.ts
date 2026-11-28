@@ -5,10 +5,7 @@ interface MenuItem {
   icon: string
 }
 const menuData: MenuItem[] = [
-  { title: '本地', key: 'local', icon: 'icon-shangchuan_line' },
-  { title: '图片', key: 'image', icon: 'icon-tupian_line' },
-  { title: '视频', key: 'video', icon: 'icon-shipin_line' },
-  { title: '音频', key: 'audio', icon: 'icon-yinle_line' },
+  { title: '资源', key: 'media', icon: 'icon-shangchuan_line' },
   { title: '文字', key: 'text', icon: 'icon-wenzi_line' }
 ];
 

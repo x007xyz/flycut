@@ -6,18 +6,6 @@ import { useTimelineHistory } from './timelineHistory';
 import { usePlayerState } from './playerState';
 
 export const useTrackState = defineStore('trackState', () => {
-  const dragData = reactive({ // 拖拽数据
-    dataInfo: {} as Track,
-    dragType: '',
-    dragPoint: {
-      x: 0,
-      y: 0
-    },
-    // 吸附辅助线
-    fixLines: [] as { position: number, frame: number }[][],
-    moveX: 0,
-    moveY: 0
-  });
   const moveTrackData = reactive({ // 行内移动
     lineIndex: -1,
     itemIndex: -1
@@ -157,6 +145,32 @@ export const useTrackState = defineStore('trackState', () => {
     }
   }
 
+  function removeSelected() {
+    const { line, index } = selectTrackItem;
+    if (line === -1 || index === -1) return;
+    history.flushHistory();
+    removeTrack(line, index);
+    selectTrackItem.line = -1;
+    selectTrackItem.index = -1;
+  }
+  function removeTracks(ids: readonly string[]) {
+    history.flushHistory();
+    ids.forEach(id => {
+      const line = trackList.findIndex(({ list }) => list.some(track => track.id === id));
+      if (line !== -1) removeTrack(line, trackList[line].list.findIndex(track => track.id === id));
+    });
+    selectTrackItem.line = -1;
+    selectTrackItem.index = -1;
+  }
+  function splitSelected(frame: number, playerSize: { width: number, height: number }) {
+    const active = selectResource.value;
+    if (!active || active.type !== 'video' || frame <= active.start || frame >= active.end) return;
+    history.flushHistory();
+    const tail = active.split(frame);
+    tail.resize(playerSize);
+    addTrack(tail, false);
+  }
+
   const frameCount = computed(() => {
     return trackList.reduce((res, { list }) => {
       return Math.max(list.reduce((max, track) => Math.max(max, track.end), 0), res);
@@ -180,7 +194,9 @@ export const useTrackState = defineStore('trackState', () => {
     addTrack,
     selectTrackById,
     removeTrack,
-    frameCount,
-    dragData
+    removeSelected,
+    removeTracks,
+    splitSelected,
+    frameCount
   };
 });
