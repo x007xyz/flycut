@@ -5,7 +5,7 @@ import type { AssetKind } from '@/storage/assets';
 export const largeFileBytes = 2 * 1024 ** 3;
 const maxImageSide = 3840;
 const maxVideoSide = 1920;
-const browserImage = /^image\/(png|jpeg|webp|gif|avif|svg\+xml)$/;
+const browserImage = /^image\/(png|apng|jpeg|webp|gif|avif|svg\+xml)$/;
 const losslessAudio = /^audio\/(wav|x-wav|wave|vnd\.wave|flac|x-flac|aiff|x-aiff)$/;
 
 /** 优先 AAC；浏览器没有 AAC 编码器时（如 Chromium）用 Opus，和合成视频一致 */
@@ -78,6 +78,8 @@ async function prepareVideo(file: File, onProgress: (progress: number) => void) 
   const buffer = await convert(file, async input => {
     const video = await input.getPrimaryVideoTrack();
     if (!video) return null;
+    // H.264 没有透明通道，带透明的 WebM 保持原样
+    if (await video.canBeTransparent()) return null;
     const audio = await input.getPrimaryAudioTrack();
     const mime = await input.getMimeType();
     compatible = mime.startsWith('video/mp4') && video.codec === 'avc' && (!audio || audio.codec === 'aac' || audio.codec === 'opus');
