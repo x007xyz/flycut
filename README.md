@@ -20,6 +20,21 @@ FlyCut automatically saves the latest timeline and its imported media in this br
 ## License
 [AGPL-3.0](LICENSE). Code derived from CcClip keeps its Apache-2.0 notice in [NOTICE](NOTICE).
 
+## Importing media and large files
+
+Imported files are processed before they are stored in the browser (OPFS) to save space and keep formats the editor and export handle:
+
+- **Images**: still images are re-encoded as WebP (alpha kept, EXIF orientation applied) and downscaled to a 3840 px long side; the original is kept when it doesn't need downscaling and WebP isn't at least 10% smaller. GIF, SVG and animated PNG/WebP stay as they are.
+- **Video**: MOV, WebM, MKV and other non H.264 MP4 files are converted to H.264 MP4 (AAC, or Opus where the browser has no AAC encoder); video with a long side above 1920 px is downscaled to 1920 px. Compatible MP4 up to 1080p is stored unchanged.
+- **Audio**: WAV, FLAC and AIFF are converted to M4A (AAC or Opus); other formats stay as they are.
+- Only the processed file is stored, not the original. Re-importing the same original file reuses the stored asset.
+
+Large files: everything runs in the browser, so very large media uses a lot of memory and disk quota.
+
+- Files over 2 GB show a warning and are not compressed (an MP4 transcode is held in memory before it's saved), but incompatible formats are still converted.
+- `.flycut` packages and JianYing drafts are built in memory and don't support more than 4 GB in total.
+- The local MCP `import_file` command accepts files up to 512 MB.
+
 ## AI access (MCP)
 
 Editing commands (read the timeline, import assets, add/update/trim/split/delete clips, undo, export) are defined once in `src/commands/tools.json` and shared by every non-UI caller.
