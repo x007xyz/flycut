@@ -43,7 +43,7 @@ export const initHotKey = () => {
     }
     if (mod && key === 'b') {
       event.preventDefault();
-      store.splitSelected(player.playStartFrame, { width: player.playerWidth, height: player.playerHeight });
+      store.splitSelected(player.playStartFrame);
       return;
     }
     if (mod && (key === '=' || key === '+' || key === '-')) {

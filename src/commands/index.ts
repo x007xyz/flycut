@@ -274,14 +274,13 @@ const handlers: Record<string, (args: Args) => unknown> = {
   },
   split_clip({ clipId, time }) {
     const timeline = useTrackState();
-    const player = usePlayerState();
     const { track } = findClip(clipId);
     const frame = frames(Number(time));
     if (track.type !== 'video') throw new Error('Only video clips can be split');
     if (frame <= track.start || frame >= track.end) throw new Error('time must be inside the clip');
     timeline.selectTrackById(track.id);
     const before = new Set(timeline.trackList.flatMap(({ list }) => list.map(({ id }) => id)));
-    timeline.splitSelected(frame, { width: player.playerWidth, height: player.playerHeight });
+    timeline.splitSelected(frame);
     const tail = timeline.trackList.flatMap(({ list }) => list).find(({ id }) => !before.has(id));
     if (!tail) throw new Error('Split failed');
     return [describeById(track.id), describeById(tail.id)];
