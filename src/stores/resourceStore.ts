@@ -57,5 +57,5 @@ export const useResourceState = defineStore('resourceState', () => {
     await refreshUsage();
   }
 
-  return { assets, posters, usage, pending, load, add, remove, refreshUsage };
+  return { assets, posters, usage, pending, load, add, remove, refreshUsage, loadPoster };
 });

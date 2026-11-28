@@ -56,6 +56,16 @@ async function describe(id: string, kind: MediaKind, format: string) {
   return { meta: { width: 0, height: 0, duration: asset.meta.duration }, poster: async() => null };
 }
 
+/** 补生成缺失的封面（如旧版本导入、没有封面缓存的素材） */
+export async function ensurePoster(record: AssetRecord) {
+  if (record.kind === 'audio' || await assetStore.readCache(record.id, 'poster.jpg')) return;
+  const { poster } = await describe(record.id, record.kind, record.format);
+  const image = await poster();
+  if (!image) return;
+  await assetStore.writeCache(record.id, 'poster.jpg', image);
+  await useResourceState().loadPoster(record.id);
+}
+
 let pendingKey = 0;
 
 /** 把文件存入素材库（按内容哈希去重）：保存原文件、解析元信息、生成封面和波形，返回素材记录 */
